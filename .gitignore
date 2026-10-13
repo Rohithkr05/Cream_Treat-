@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production / Build artifacts
+dist/
+*/dist/
+build/
+*/build/
+.next/
+frontend/.next/
+out/
+frontend/out/
+
+# Environment variables
+.env
+.env.*
+*.env
+*.env.local
+!*.env.example
+!.env.example
+
+# Logs & Debugging
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+*/coverage/
+
+# TypeScript cache
+*.tsbuildinfo
