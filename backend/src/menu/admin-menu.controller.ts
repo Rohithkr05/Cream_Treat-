@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service.js';
 import { FoodItemsService } from './food-items.service.js';
@@ -18,8 +19,10 @@ import { CreateFoodItemDto } from './dto/create-food-item.dto.js';
 import { UpdateFoodItemDto } from './dto/update-food-item.dto.js';
 import { QueryFoodItemsDto } from './dto/query-food-items.dto.js';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @Controller('admin')
+@UseGuards(JwtAuthGuard)
 export class AdminMenuController {
   constructor(
     private readonly categoriesService: CategoriesService,

@@ -7,12 +7,15 @@ import { FoodItemsService } from './food-items.service.js';
 import { MenuController } from './menu.controller.js';
 import { AdminMenuController } from './admin-menu.controller.js';
 
+import { AuthModule } from '../auth/auth.module.js';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Category.name, schema: CategorySchema },
       { name: FoodItem.name, schema: FoodItemSchema },
     ]),
+    AuthModule,
   ],
   controllers: [MenuController, AdminMenuController],
   providers: [CategoriesService, FoodItemsService],

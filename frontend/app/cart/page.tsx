@@ -2,26 +2,28 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Plus,
   ShoppingBag,
   Hash,
   AlertCircle,
-  CheckCircle2,
   UtensilsCrossed,
+  Loader2,
 } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { CartItem } from '@/components/CartItem';
-import { formatCurrency } from '@/lib/api';
+import { createOrder, formatCurrency } from '@/lib/api';
 
 function CartPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const {
     items,
     tableNumber,
     setTableNumber,
+    clearCart,
     totalItemCount,
     totalAmountPaise,
   } = useCart();
@@ -30,7 +32,8 @@ function CartPageContent() {
     tableNumber ? tableNumber.toString() : '',
   );
   const [tableError, setTableError] = useState<string | null>(null);
-  const [isReadyConfirmed, setIsReadyConfirmed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Sync table from query parameter if provided (e.g. /cart?table=5)
   useEffect(() => {
@@ -83,7 +86,10 @@ function CartPageContent() {
     if (tableError) {
       setTableError(null);
     }
-    // Auto-save if valid
+    if (submitError) {
+      setSubmitError(null);
+    }
+    // Auto-save if valid integer
     const trimmed = val.trim();
     if (/^\d+$/.test(trimmed)) {
       const parsed = parseInt(trimmed, 10);
@@ -93,10 +99,12 @@ function CartPageContent() {
     }
   };
 
-  const handlePlaceOrderClick = () => {
-    setIsReadyConfirmed(false);
+  const handlePlaceOrderClick = async () => {
+    // Prevent double submission
+    if (isSubmitting) return;
 
     if (items.length === 0) {
+      setSubmitError('Your cart is empty. Please add items to place an order.');
       return;
     }
 
@@ -105,8 +113,50 @@ function CartPageContent() {
       return;
     }
 
-    // Phase 6 UI verification: cart and table are valid. Order creation is in Phase 7.
-    setIsReadyConfirmed(true);
+    const targetTable = parseInt(tableInput.trim(), 10);
+    if (!targetTable || targetTable <= 0) {
+      setTableError('Please enter your table number.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setSubmitError(null);
+
+      // Security: Only send foodItemId and quantity. Never send prices or totals.
+      const payload = {
+        tableNumber: targetTable,
+        items: items.map((ci) => ({
+          foodItemId: ci.foodItem._id,
+          quantity: ci.quantity,
+        })),
+      };
+
+      const orderResponse = await createOrder(payload);
+
+      // Cache order in sessionStorage for instant confirmation rendering
+      try {
+        sessionStorage.setItem(
+          'cream_treat_last_order',
+          JSON.stringify(orderResponse),
+        );
+      } catch {
+        // Ignore session storage errors
+      }
+
+      // CRITICAL: Clear cart ONLY after backend order creation confirms success
+      clearCart();
+
+      // Navigate to order confirmation page
+      router.push(`/order-success?orderId=${encodeURIComponent(orderResponse.id)}`);
+    } catch (err: unknown) {
+      setIsSubmitting(false);
+      setSubmitError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to place your order. Please try again.',
+      );
+    }
   };
 
   return (
@@ -160,6 +210,19 @@ function CartPageContent() {
         ) : (
           /* Cart Review View */
           <div className="space-y-4">
+            {/* Submission Error Banner */}
+            {submitError && (
+              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs flex items-start gap-2.5 shadow-2xs animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold">Order could not be placed</p>
+                  <p className="text-[11px] text-rose-700 mt-0.5 leading-relaxed">
+                    {submitError}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Table Number Card */}
             <div className="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-2xs">
               <div className="flex items-center justify-between mb-2">
@@ -184,6 +247,7 @@ function CartPageContent() {
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
+                    disabled={isSubmitting}
                     value={tableInput}
                     onChange={handleTableInputChange}
                     placeholder="Enter table number (e.g. 5)"
@@ -191,13 +255,14 @@ function CartPageContent() {
                       tableError
                         ? 'border-rose-300 bg-rose-50/50 text-rose-900 focus:ring-rose-500'
                         : 'border-stone-200 bg-stone-50 text-stone-900 focus:bg-white focus:ring-amber-500'
-                    }`}
+                    } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
                 </div>
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => validateAndSaveTable(tableInput)}
-                  className="px-3.5 py-2 bg-stone-900 text-white text-xs font-semibold rounded-xl hover:bg-stone-800 active:scale-95 transition-all shadow-2xs"
+                  className="px-3.5 py-2 bg-stone-900 text-white text-xs font-semibold rounded-xl hover:bg-stone-800 active:scale-95 transition-all shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Set Table
                 </button>
@@ -265,21 +330,6 @@ function CartPageContent() {
                 </span>
               </div>
             </div>
-
-            {/* Phase 6 Validation Notice */}
-            {isReadyConfirmed && (
-              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold">
-                    Order details confirmed for Table {tableNumber}!
-                  </p>
-                  <p className="text-[11px] text-emerald-700 mt-0.5">
-                    Ready for order creation. Backend order creation and daily sequence generation will be executed in Phase 7.
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </main>
@@ -296,10 +346,22 @@ function CartPageContent() {
             </div>
 
             <button
+              id="place-order-button"
+              type="button"
               onClick={handlePlaceOrderClick}
-              className="flex-1 max-w-xs py-3 px-5 bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className={`flex-1 max-w-xs py-3 px-5 bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2 ${
+                isSubmitting ? 'opacity-70 cursor-not-allowed active:scale-100' : ''
+              }`}
             >
-              <span>Confirm & Place Order</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  <span>Placing Order...</span>
+                </>
+              ) : (
+                <span>Confirm & Place Order</span>
+              )}
             </button>
           </div>
         </div>

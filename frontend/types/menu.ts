@@ -28,3 +28,46 @@ export interface CartItem {
   foodItem: FoodItem;
   quantity: number;
 }
+
+export type OrderStatus =
+  | 'NEW'
+  | 'ACCEPTED'
+  | 'PREPARING'
+  | 'READY'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export interface CreateOrderItemRequest {
+  foodItemId: string;
+  quantity: number;
+}
+
+export interface CreateOrderRequest {
+  tableNumber: number;
+  items: CreateOrderItemRequest[];
+}
+
+export interface OrderResponseItem {
+  foodItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  itemTotal: number;
+}
+
+export interface OrderResponse {
+  id: string;
+  orderNumber: string;
+  displayOrderNumber: string;
+  orderDate: string;
+  tableNumber: number;
+  status: OrderStatus;
+  items: OrderResponseItem[];
+  subtotal: number;
+  total: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type CustomerOrder = OrderResponse;
+export type OrderItem = OrderResponseItem;

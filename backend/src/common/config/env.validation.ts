@@ -30,6 +30,10 @@ class EnvironmentVariables {
   JWT_SECRET!: string;
 
   @IsString()
+  @IsOptional()
+  JWT_EXPIRES_IN: string = '1d';
+
+  @IsString()
   FRONTEND_URL: string = 'http://localhost:3000';
 
   @IsString()
