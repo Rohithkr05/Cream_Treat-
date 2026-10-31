@@ -15,6 +15,9 @@ export function FoodCard({ item }: FoodCardProps) {
   const { getItemQuantity, addItem, removeItem } = useCart();
   const quantity = getItemQuantity(item._id);
 
+  const [imageError, setImageError] = React.useState(false);
+  const showImage = Boolean(item.imageUrl && item.imageUrl.trim()) && !imageError;
+
   return (
     <div className="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-xs hover:border-amber-200/80 transition-all duration-200 flex flex-col justify-between gap-3">
       <div className="flex gap-3.5">
@@ -39,13 +42,15 @@ export function FoodCard({ item }: FoodCardProps) {
 
         {/* Optional Image or Clean Restaurant Placeholder */}
         <div className="relative shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-stone-100 border border-stone-200/60 flex items-center justify-center">
-          {item.imageUrl ? (
+          {showImage ? (
             <Image
               src={item.imageUrl}
               alt={item.name}
               fill
+              unoptimized
               className="object-cover"
               sizes="96px"
+              onError={() => setImageError(true)}
             />
           ) : (
             <div className="flex flex-col items-center justify-center text-stone-300 gap-1 p-2 text-center">

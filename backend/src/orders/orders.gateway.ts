@@ -64,7 +64,34 @@ export interface OrderStatusUpdatedCustomerPayload {
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (
+      requestOrigin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!requestOrigin) return callback(null, true);
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      if (requestOrigin === frontendUrl) {
+        return callback(null, true);
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        const isLocalOrLan =
+          /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(
+            requestOrigin,
+          );
+        if (isLocalOrLan) {
+          return callback(null, true);
+        }
+      }
+
+      const allowedOrigins = frontendUrl.split(',').map((u) => u.trim());
+      if (allowedOrigins.includes(requestOrigin)) {
+        return callback(null, true);
+      }
+
+      callback(null, false);
+    },
     credentials: true,
   },
 })

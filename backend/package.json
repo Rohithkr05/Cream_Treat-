@@ -18,9 +18,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "seed": "nest build && node dist/database/seed.js"
+    "seed": "nest build && node dist/database/seed.js",
+    "seed:menu": "nest build && node dist/database/seed-menu.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

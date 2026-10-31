@@ -451,12 +451,18 @@ export default function AdminDashboardPage() {
             <span className="px-3 py-1 text-stone-500 hover:text-stone-900 cursor-default">
               Orders
             </span>
-            <span className="px-3 py-1 text-stone-400 cursor-not-allowed flex items-center gap-1">
-              Menu <span className="text-[10px] bg-stone-200 px-1 rounded">API Locked</span>
-            </span>
-            <span className="px-3 py-1 text-stone-400 cursor-not-allowed flex items-center gap-1">
-              Categories <span className="text-[10px] bg-stone-200 px-1 rounded">API Locked</span>
-            </span>
+            <Link
+              href="/admin/menu"
+              className="px-3 py-1 text-stone-600 hover:text-stone-900 hover:bg-white/60 rounded-lg transition-colors font-medium"
+            >
+              Menu
+            </Link>
+            <Link
+              href="/admin/qr"
+              className="px-3 py-1 text-stone-600 hover:text-stone-900 hover:bg-white/60 rounded-lg transition-colors font-medium"
+            >
+              QR Codes
+            </Link>
           </nav>
 
           {/* Right Action Profile & Refresh */}

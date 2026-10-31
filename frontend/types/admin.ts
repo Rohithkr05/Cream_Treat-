@@ -51,3 +51,48 @@ export interface AdminOrdersQuery {
   status?: OrderStatus;
   date?: string;
 }
+
+export interface CreateCategoryPayload {
+  name: string;
+  description?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateCategoryPayload {
+  name?: string;
+  description?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface DeleteCategoryResponse {
+  message: string;
+  deleted: boolean;
+  category: import('./menu').Category;
+}
+
+export interface CreateFoodItemPayload {
+  categoryId: string;
+  name: string;
+  description?: string;
+  price: number;
+  imageUrl?: string;
+  isAvailable?: boolean;
+  displayOrder?: number;
+}
+
+export interface UpdateFoodItemPayload {
+  categoryId?: string;
+  name?: string;
+  description?: string;
+  price?: number;
+  imageUrl?: string;
+  isAvailable?: boolean;
+  displayOrder?: number;
+}
+
+export interface DeleteFoodItemResponse {
+  message: string;
+  id: string;
+}

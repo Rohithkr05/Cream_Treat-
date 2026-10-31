@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { UtensilsCrossed, Hash, Edit2, Check } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
+import { validateCustomerTableNumber } from '@/lib/qr';
 
 export function Navbar() {
   const { tableNumber, setTableNumber } = useCart();
@@ -11,9 +12,9 @@ export function Navbar() {
 
   const handleSaveTable = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = parseInt(tempTable, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-      setTableNumber(parsed);
+    const res = validateCustomerTableNumber(tempTable);
+    if (res.isValid && res.value !== undefined) {
+      setTableNumber(res.value);
       setIsEditingTable(false);
     }
   };
@@ -43,7 +44,7 @@ export function Navbar() {
                 <input
                   type="number"
                   min="1"
-                  max="99"
+                  max="999"
                   value={tempTable}
                   onChange={(e) => setTempTable(e.target.value)}
                   placeholder="Table"

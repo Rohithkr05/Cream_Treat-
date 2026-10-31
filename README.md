@@ -232,17 +232,38 @@ The dedicated customer cart and order review interface is available at `/cart` a
 - [x] **Phase 4: Menu APIs** *(Completed)*
 - [x] **Phase 5: Customer digital menu** *(Completed)*
 - [x] **Phase 6: Cart system** *(Completed)*
-- [ ] **Phase 7: Order creation + order number**
-- [ ] **Phase 8: Admin authentication**
-- [ ] **Phase 9: Admin dashboard**
-- [ ] **Phase 10: Real-time order notifications**
-- [ ] **Phase 11: Customer order tracking**
-- [ ] **Phase 12: Admin menu management**
-- [ ] **Phase 13: QR / Table management**
+- [x] **Phase 7: Order creation + order number** *(Completed)*
+- [x] **Phase 8: Admin authentication** *(Completed)*
+- [x] **Phase 9: Admin dashboard** *(Completed)*
+- [x] **Phase 10: Real-time order notifications** *(Completed)*
+- [x] **Phase 11: Customer order tracking** *(Completed)*
+- [x] **Phase 12: Admin menu management** *(Completed)*
+- [x] **Phase 13: QR / Table management** *(Completed)*
 - [ ] **Phase 14: UI polish + responsive design**
 - [ ] **Phase 15: Testing + bug fixing**
 - [ ] **Phase 16: Production preparation**
 - [ ] **Phase 17: Deployment**
 - [ ] **Phase 18: Real restaurant testing**
+
+---
+
+## 📱 QR Code Generation & Table Management (Phase 13)
+
+The dedicated table QR code management and routing system for Cream Treat:
+- **Centralized QR Configuration (`frontend/lib/qr.ts` & `backend/src/qr/qr.helper.ts`)**:
+  - Deterministic destination URL: `<APP_URL>/order?table=<tableNumber>`.
+  - Configurable via `NEXT_PUBLIC_APP_URL` / `FRONTEND_URL` with zero hardcoded localhost strings.
+  - Strict range boundaries: tables 1–100 for admin QR generation; tables 1–999 for customer dining orders.
+- **Admin QR Management Dashboard (`/admin/qr`)**:
+  - Protected by existing JWT admin authentication (`getAdminToken` / `adminGetProfile`).
+  - Table count generator input with client-side validation (1–100).
+  - Standalone high-resolution printable cards with "Cream Treat", "TABLE X", scannable QR code, and "Scan to Order".
+  - **High-Res PNG Download**: Direct client-side generation using offscreen canvas (`cream-treat-table-X-qr.png`).
+  - **Print Layout**: Dedicated `@media print` stylesheet that cleanly hides navigation, headers, and buttons, arranging 2 cards per page for physical printouts.
+- **Customer Table Flow & URL Handling (`/order` & `/cart`)**:
+  - Scanning `/order?table=5` automatically assigns Table 5 without manual entry.
+  - Visiting `/order` without a table number prompts customer: *"Please scan the QR code on your table to start your order."* with an interactive guide modal (`[ Scan / Return to QR ]`).
+  - Invalid parameters (`?table=abc`, `?table=0`, `?table=-1`) trigger a prominent *"Invalid table number"* alert and strictly prevent checkout.
+
 
 

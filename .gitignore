@@ -42,3 +42,6 @@ coverage/
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Original menu source files - not required at runtime
+/menu/

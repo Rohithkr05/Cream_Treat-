@@ -46,8 +46,28 @@ export type SocketConnectionState =
 
 /**
  * Returns the configured base URL for Socket.IO connection.
+ * Resolves to the local LAN host when accessed from a mobile device on Wi-Fi,
+ * respects NEXT_PUBLIC_SOCKET_URL in production, and falls back to localhost:3001.
  */
 export function getSocketServerUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    const envSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    if (
+      envSocketUrl &&
+      typeof envSocketUrl === 'string' &&
+      !envSocketUrl.includes('localhost') &&
+      !envSocketUrl.includes('127.0.0.1')
+    ) {
+      return envSocketUrl.trim().replace(/\/+$/, '');
+    }
+    const protocol = window.location.protocol;
+    return `${protocol}//${hostname}:3001`;
+  }
+
   return (
     process.env.NEXT_PUBLIC_SOCKET_URL ||
     process.env.NEXT_PUBLIC_API_URL ||

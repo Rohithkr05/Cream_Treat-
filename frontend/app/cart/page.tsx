@@ -15,6 +15,7 @@ import {
 import { useCart } from '@/hooks/useCart';
 import { CartItem } from '@/components/CartItem';
 import { createOrder, formatCurrency } from '@/lib/api';
+import { parseTableUrlParam, validateCustomerTableNumber } from '@/lib/qr';
 
 function CartPageContent() {
   const router = useRouter();
@@ -38,21 +39,26 @@ function CartPageContent() {
   // Sync table from query parameter if provided (e.g. /cart?table=5)
   useEffect(() => {
     const tableParam = searchParams.get('table');
-    if (tableParam) {
-      const parsed = parseInt(tableParam, 10);
-      if (!isNaN(parsed) && parsed > 0) {
-        setTableNumber(parsed);
-        setTableInput(parsed.toString());
+    if (tableParam !== null) {
+      const res = parseTableUrlParam(tableParam);
+      if (res.status === 'VALID') {
+        setTableNumber(res.tableNumber);
+        setTableInput(res.tableNumber.toString());
+        setTableError(null);
+      } else {
+        setTableError('Invalid table number.');
+        setTableInput(tableParam);
+        setTableNumber(null);
       }
     }
   }, [searchParams, setTableNumber]);
 
   // Keep tableInput in sync if tableNumber was loaded from localStorage
   useEffect(() => {
-    if (tableNumber && !tableInput) {
+    if (tableNumber && !tableInput && !tableError) {
       setTableInput(tableNumber.toString());
     }
-  }, [tableNumber, tableInput]);
+  }, [tableNumber, tableInput, tableError]);
 
   const menuUrl = tableNumber ? `/order?table=${tableNumber}` : '/order';
 
@@ -60,42 +66,41 @@ function CartPageContent() {
     const trimmed = value.trim();
     if (!trimmed) {
       setTableError('Please enter your table number.');
+      setTableNumber(null);
       return false;
     }
 
-    // Must be a positive integer without decimals
-    if (!/^\d+$/.test(trimmed)) {
-      setTableError('Table number must be a positive whole number.');
-      return false;
-    }
-
-    const parsed = parseInt(trimmed, 10);
-    if (parsed <= 0 || parsed > 999) {
-      setTableError('Please enter a valid table number (1–999).');
+    const res = validateCustomerTableNumber(trimmed);
+    if (!res.isValid || res.value === undefined) {
+      setTableError(res.error || 'Invalid table number.');
+      setTableNumber(null);
       return false;
     }
 
     setTableError(null);
-    setTableNumber(parsed);
+    setTableNumber(res.value);
     return true;
   };
 
   const handleTableInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setTableInput(val);
-    if (tableError) {
-      setTableError(null);
-    }
     if (submitError) {
       setSubmitError(null);
     }
-    // Auto-save if valid integer
     const trimmed = val.trim();
-    if (/^\d+$/.test(trimmed)) {
-      const parsed = parseInt(trimmed, 10);
-      if (parsed > 0 && parsed <= 999) {
-        setTableNumber(parsed);
-      }
+    if (!trimmed) {
+      setTableError('Please enter your table number.');
+      setTableNumber(null);
+      return;
+    }
+    const res = validateCustomerTableNumber(trimmed);
+    if (res.isValid && res.value !== undefined) {
+      setTableNumber(res.value);
+      setTableError(null);
+    } else {
+      setTableError(res.error || 'Invalid table number.');
+      setTableNumber(null);
     }
   };
 
@@ -105,6 +110,10 @@ function CartPageContent() {
 
     if (items.length === 0) {
       setSubmitError('Your cart is empty. Please add items to place an order.');
+      return;
+    }
+
+    if (tableError) {
       return;
     }
 
@@ -349,9 +358,11 @@ function CartPageContent() {
               id="place-order-button"
               type="button"
               onClick={handlePlaceOrderClick}
-              disabled={isSubmitting}
+              disabled={isSubmitting || Boolean(tableError) || !tableInput.trim()}
               className={`flex-1 max-w-xs py-3 px-5 bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2 ${
-                isSubmitting ? 'opacity-70 cursor-not-allowed active:scale-100' : ''
+                isSubmitting || Boolean(tableError) || !tableInput.trim()
+                  ? 'opacity-60 cursor-not-allowed active:scale-100'
+                  : ''
               }`}
             >
               {isSubmitting ? (

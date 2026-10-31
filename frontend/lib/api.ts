@@ -11,17 +11,80 @@ import {
   AdminOrdersQuery,
   AdminOrdersResponse,
   AdminUser,
+  CreateCategoryPayload,
+  UpdateCategoryPayload,
+  DeleteCategoryResponse,
+  CreateFoodItemPayload,
+  UpdateFoodItemPayload,
+  DeleteFoodItemResponse,
 } from '@/types/admin';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+/**
+ * Returns the configured backend REST API base URL.
+ * Automatically resolves to the local network host when testing from a mobile phone on LAN,
+ * uses NEXT_PUBLIC_API_URL when explicitly configured or in production,
+ * and falls back to http://localhost:3001 for local development.
+ */
+export function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (
+      envUrl &&
+      typeof envUrl === 'string' &&
+      !envUrl.includes('localhost') &&
+      !envUrl.includes('127.0.0.1')
+    ) {
+      return envUrl.trim().replace(/\/+$/, '');
+    }
+    const protocol = window.location.protocol;
+    return `${protocol}//${hostname}:3001`;
+  }
+
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+
+  return 'http://localhost:3001';
+}
+
+/**
+ * Safely extracts diagnostic error message from a failed HTTP response for console logging without throwing
+ */
+async function parseResponseErrorDetails(res: Response): Promise<string> {
+  try {
+    const data = await res.clone().json();
+    if (data?.message) {
+      return Array.isArray(data.message)
+        ? data.message.join(', ')
+        : String(data.message);
+    }
+    return JSON.stringify(data);
+  } catch {
+    try {
+      return await res.clone().text();
+    } catch {
+      return 'No response body';
+    }
+  }
+}
 
 export async function fetchCategories(): Promise<Category[]> {
+  const baseUrl = getApiBaseUrl();
   try {
-    const res = await fetch(`${API_BASE_URL}/menu/categories`, {
+    const res = await fetch(`${baseUrl}/menu/categories`, {
       cache: 'no-store',
     });
     if (!res.ok) {
+      const details = await parseResponseErrorDetails(res);
+      console.error(
+        `[Cream Treat API] GET ${baseUrl}/menu/categories failed (${res.status} ${res.statusText}):`,
+        details,
+      );
       throw new Error('Unable to load menu categories. Please try again.');
     }
     return res.json();
@@ -29,6 +92,10 @@ export async function fetchCategories(): Promise<Category[]> {
     if (err instanceof Error && err.message.includes('Unable to load')) {
       throw err;
     }
+    console.error(
+      `[Cream Treat API] Connection error GET ${baseUrl}/menu/categories:`,
+      err,
+    );
     throw new Error(
       'Unable to connect to the restaurant menu service. Please verify your connection.',
     );
@@ -38,14 +105,20 @@ export async function fetchCategories(): Promise<Category[]> {
 export async function fetchFoodItems(
   categoryId?: string,
 ): Promise<FoodItem[]> {
+  const baseUrl = getApiBaseUrl();
+  const url = categoryId
+    ? `${baseUrl}/menu/items?categoryId=${encodeURIComponent(categoryId)}`
+    : `${baseUrl}/menu/items`;
   try {
-    const url = categoryId
-      ? `${API_BASE_URL}/menu/items?categoryId=${encodeURIComponent(categoryId)}`
-      : `${API_BASE_URL}/menu/items`;
     const res = await fetch(url, {
       cache: 'no-store',
     });
     if (!res.ok) {
+      const details = await parseResponseErrorDetails(res);
+      console.error(
+        `[Cream Treat API] GET ${url} failed (${res.status} ${res.statusText}):`,
+        details,
+      );
       throw new Error('Unable to load menu items. Please try again.');
     }
     return res.json();
@@ -53,6 +126,7 @@ export async function fetchFoodItems(
     if (err instanceof Error && err.message.includes('Unable to load')) {
       throw err;
     }
+    console.error(`[Cream Treat API] Connection error GET ${url}:`, err);
     throw new Error(
       'Unable to connect to the restaurant menu service. Please verify your connection.',
     );
@@ -60,11 +134,18 @@ export async function fetchFoodItems(
 }
 
 export async function fetchFoodItemById(id: string): Promise<FoodItem> {
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}/menu/items/${id}`;
   try {
-    const res = await fetch(`${API_BASE_URL}/menu/items/${id}`, {
+    const res = await fetch(url, {
       cache: 'no-store',
     });
     if (!res.ok) {
+      const details = await parseResponseErrorDetails(res);
+      console.error(
+        `[Cream Treat API] GET ${url} failed (${res.status} ${res.statusText}):`,
+        details,
+      );
       throw new Error('Unable to load item details. Please try again.');
     }
     return res.json();
@@ -72,6 +153,7 @@ export async function fetchFoodItemById(id: string): Promise<FoodItem> {
     if (err instanceof Error && err.message.includes('Unable to load')) {
       throw err;
     }
+    console.error(`[Cream Treat API] Connection error GET ${url}:`, err);
     throw new Error('Item could not be loaded.');
   }
 }
@@ -83,7 +165,7 @@ export async function createOrder(
   orderData: CreateOrderRequest,
 ): Promise<OrderResponse> {
   try {
-    const res = await fetch(`${API_BASE_URL}/orders`, {
+    const res = await fetch(`${getApiBaseUrl()}/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -133,7 +215,7 @@ export async function createOrder(
  */
 export async function getOrder(orderId: string): Promise<OrderResponse> {
   try {
-    const res = await fetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderId)}`, {
+    const res = await fetch(`${getApiBaseUrl()}/orders/${encodeURIComponent(orderId)}`, {
       cache: 'no-store',
     });
 
@@ -226,7 +308,7 @@ export async function adminLogin(
   password: string,
 ): Promise<AdminLoginResponse> {
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/admin/login`, {
+    const res = await fetch(`${getApiBaseUrl()}/auth/admin/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -266,7 +348,7 @@ export async function adminGetProfile(tokenOverride?: string): Promise<AdminUser
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/admin/me`, {
+    const res = await fetch(`${getApiBaseUrl()}/auth/admin/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -294,7 +376,7 @@ export async function adminLogout(): Promise<void> {
   const token = getAdminToken();
   try {
     if (token) {
-      await fetch(`${API_BASE_URL}/auth/admin/logout`, {
+      await fetch(`${getApiBaseUrl()}/auth/admin/logout`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -313,7 +395,7 @@ export async function adminLogout(): Promise<void> {
  */
 export async function fetchAdminCategories(tokenOverride?: string): Promise<Category[]> {
   const token = tokenOverride || getAdminToken();
-  const res = await fetch(`${API_BASE_URL}/admin/categories`, {
+  const res = await fetch(`${getApiBaseUrl()}/admin/categories`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
@@ -345,8 +427,8 @@ export async function fetchAdminOrders(
 
   const queryString = queryParams.toString();
   const url = queryString
-    ? `${API_BASE_URL}/admin/orders?${queryString}`
-    : `${API_BASE_URL}/admin/orders`;
+    ? `${getApiBaseUrl()}/admin/orders?${queryString}`
+    : `${getApiBaseUrl()}/admin/orders`;
 
   try {
     const res = await fetch(url, {
@@ -394,7 +476,7 @@ export async function fetchAdminOrderById(
 
   try {
     const res = await fetch(
-      `${API_BASE_URL}/admin/orders/${encodeURIComponent(id)}`,
+      `${getApiBaseUrl()}/admin/orders/${encodeURIComponent(id)}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -442,7 +524,7 @@ export async function updateAdminOrderStatus(
 
   try {
     const res = await fetch(
-      `${API_BASE_URL}/admin/orders/${encodeURIComponent(orderId)}/status`,
+      `${getApiBaseUrl()}/admin/orders/${encodeURIComponent(orderId)}/status`,
       {
         method: 'PATCH',
         headers: {
@@ -495,6 +577,254 @@ export async function updateAdminOrderStatus(
     }
     throw new Error('Unable to update order status. Please try again.');
   }
+}
+
+/**
+ * Helper to safely extract error messages from API responses.
+ */
+async function parseResponseErrorMessage(
+  res: Response,
+  defaultMessage: string,
+): Promise<string> {
+  try {
+    const errorData = await res.json();
+    if (errorData?.message) {
+      return Array.isArray(errorData.message)
+        ? errorData.message.join(', ')
+        : String(errorData.message);
+    }
+  } catch {
+    // Return default message if body cannot be parsed
+  }
+  return defaultMessage;
+}
+
+/**
+ * Protected Admin API call: creates a new category.
+ */
+export async function createAdminCategory(
+  data: CreateCategoryPayload,
+  tokenOverride?: string,
+): Promise<Category> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/categories`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(res, 'Failed to create category');
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Protected Admin API call: updates category details or display order.
+ */
+export async function updateAdminCategory(
+  id: string,
+  data: UpdateCategoryPayload,
+  tokenOverride?: string,
+): Promise<Category> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(
+    `${getApiBaseUrl()}/admin/categories/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(res, 'Failed to update category');
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Protected Admin API call: deletes or deactivates a category.
+ * If food items exist, the server soft-deactivates it (deleted: false).
+ * If no food items exist, permanently deletes it (deleted: true).
+ */
+export async function deleteAdminCategory(
+  id: string,
+  tokenOverride?: string,
+): Promise<DeleteCategoryResponse> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(
+    `${getApiBaseUrl()}/admin/categories/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(
+      res,
+      'Failed to delete or deactivate category',
+    );
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Protected Admin API call: fetches all food items (including unavailable items),
+ * optionally filtered by categoryId.
+ */
+export async function fetchAdminFoodItems(
+  categoryId?: string,
+  tokenOverride?: string,
+): Promise<FoodItem[]> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const url = categoryId
+    ? `${getApiBaseUrl()}/admin/items?categoryId=${encodeURIComponent(categoryId)}`
+    : `${getApiBaseUrl()}/admin/items`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(res, 'Failed to load food items');
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Protected Admin API call: creates a new food item.
+ */
+export async function createAdminFoodItem(
+  data: CreateFoodItemPayload,
+  tokenOverride?: string,
+): Promise<FoodItem> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/items`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(res, 'Failed to create food item');
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Protected Admin API call: updates a food item's price, availability, or details.
+ */
+export async function updateAdminFoodItem(
+  id: string,
+  data: UpdateFoodItemPayload,
+  tokenOverride?: string,
+): Promise<FoodItem> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(
+    `${getApiBaseUrl()}/admin/items/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    },
+  );
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(res, 'Failed to update food item');
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/**
+ * Protected Admin API call: deletes a food item permanently.
+ */
+export async function deleteAdminFoodItem(
+  id: string,
+  tokenOverride?: string,
+): Promise<DeleteFoodItemResponse> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(
+    `${getApiBaseUrl()}/admin/items/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(res, 'Failed to delete food item');
+    throw new Error(msg);
+  }
+  return res.json();
 }
 
 

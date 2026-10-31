@@ -2,7 +2,16 @@
 
 import React, { Suspense, useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, AlertCircle, RefreshCw, UtensilsCrossed } from 'lucide-react';
+import {
+  Search,
+  AlertCircle,
+  RefreshCw,
+  UtensilsCrossed,
+  QrCode,
+  X,
+  Hash,
+  Check,
+} from 'lucide-react';
 import { Category, FoodItem } from '@/types/menu';
 import { fetchCategories, fetchFoodItems } from '@/lib/api';
 import { useCart } from '@/hooks/useCart';
@@ -11,6 +20,7 @@ import { CategoryBar } from '@/components/CategoryBar';
 import { FoodCard } from '@/components/FoodCard';
 import { CartBottomBar } from '@/components/CartBottomBar';
 import { MenuSkeleton } from '@/components/MenuSkeleton';
+import { parseTableUrlParam, validateCustomerTableNumber } from '@/lib/qr';
 
 function OrderMenuContent() {
   const searchParams = useSearchParams();
@@ -23,14 +33,29 @@ function OrderMenuContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Table Parameter State
+  const [isInvalidTableParam, setIsInvalidTableParam] = useState(false);
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [manualTableInput, setManualTableInput] = useState('');
+  const [manualTableError, setManualTableError] = useState<string | null>(null);
+
   // Automatically sync table number from query parameters (e.g. /order?table=5)
   useEffect(() => {
-    const tableParam = searchParams.get('table');
-    if (tableParam) {
-      const parsed = parseInt(tableParam, 10);
-      if (!isNaN(parsed) && parsed > 0) {
-        setTableNumber(parsed);
+    const rawParam = searchParams.get('table');
+
+    if (rawParam !== null) {
+      const parsed = parseTableUrlParam(rawParam);
+      if (parsed.status === 'VALID') {
+        setTableNumber(parsed.tableNumber);
+        setIsInvalidTableParam(false);
+      } else {
+        // Invalid table in URL (e.g. ?table=abc, ?table=0, ?table=-1)
+        setIsInvalidTableParam(true);
+        setTableNumber(null);
       }
+    } else {
+      // No table param in URL
+      setIsInvalidTableParam(false);
     }
   }, [searchParams, setTableNumber]);
 
@@ -90,6 +115,21 @@ function OrderMenuContent() {
     });
   }, [foodItems, selectedCategoryId, searchQuery]);
 
+  // Save manual table number from modal
+  const handleSaveManualTable = (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = validateCustomerTableNumber(manualTableInput);
+    if (!res.isValid || res.value === undefined) {
+      setManualTableError(res.error || 'Please enter a valid table number (1–999).');
+      return;
+    }
+
+    setTableNumber(res.value);
+    setIsInvalidTableParam(false);
+    setManualTableError(null);
+    setIsScanModalOpen(false);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-stone-50">
       {/* Restaurant Header & Table Badge */}
@@ -97,12 +137,67 @@ function OrderMenuContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-3xl w-full mx-auto pb-28">
-        {/* Table Notice if table not set */}
-        {!tableNumber && (
-          <div className="mx-4 mt-3 p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl text-amber-900 text-xs flex items-center justify-between">
-            <span className="font-medium">
-              Dining in? Tap the table badge above to set your table number.
-            </span>
+        {/* Invalid Table Number Banner (Part 11) */}
+        {isInvalidTableParam && (
+          <div
+            id="invalid-table-banner"
+            className="mx-4 mt-3 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs flex items-start gap-3 shadow-2xs"
+          >
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold text-sm">Invalid table number.</p>
+              <p className="text-xs text-rose-700 mt-0.5">
+                The table parameter in your link is not recognized. Please scan the QR code on your dining table.
+              </p>
+              <div className="mt-2.5 flex items-center gap-2">
+                <button
+                  type="button"
+                  id="scan-return-qr-invalid-button"
+                  onClick={() => {
+                    setManualTableInput('');
+                    setManualTableError(null);
+                    setIsScanModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Scan / Return to QR</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Missing Table Notice: When opened at /order without a table number (Part 11) */}
+        {!isInvalidTableParam && !tableNumber && (
+          <div
+            id="missing-table-banner"
+            className="mx-4 mt-3 p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-2xl text-amber-950 text-xs flex items-start gap-3 shadow-2xs"
+          >
+            <QrCode className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold text-sm">
+                Please scan the QR code on your table to start your order.
+              </p>
+              <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                Each dining table has a unique QR code that routes your delicious food directly to your table.
+              </p>
+              <div className="mt-2.5 flex items-center gap-2">
+                <button
+                  type="button"
+                  id="scan-return-qr-button"
+                  onClick={() => {
+                    setManualTableInput('');
+                    setManualTableError(null);
+                    setIsScanModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 active:scale-95 text-white rounded-lg text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Scan / Return to QR</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -201,6 +296,106 @@ function OrderMenuContent() {
 
       {/* Floating Bottom Cart Bar */}
       <CartBottomBar />
+
+      {/* Interactive Scan / Return to QR Guide Modal */}
+      {isScanModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-stone-950/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl border border-stone-200 text-center relative">
+            <button
+              type="button"
+              onClick={() => setIsScanModalOpen(false)}
+              className="absolute right-4 top-4 p-1.5 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100 transition"
+              aria-label="Close dialog"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center mx-auto mb-3.5 shadow-2xs">
+              <QrCode className="w-7 h-7" />
+            </div>
+
+            <h3 className="text-base font-bold text-stone-900 tracking-tight">
+              Table QR Code
+            </h3>
+            <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+              Open your phone camera and point it at the QR code card placed on your dining table.
+            </p>
+
+            <div className="mt-4 p-3 bg-stone-50 rounded-xl border border-stone-200/70 text-left space-y-1.5 text-[11px] text-stone-600">
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full bg-amber-600 text-white font-bold text-[10px] flex items-center justify-center">
+                  1
+                </span>
+                <span>Look for the "Cream Treat" stand on your table.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full bg-amber-600 text-white font-bold text-[10px] flex items-center justify-center">
+                  2
+                </span>
+                <span>Scan the QR code with any camera app.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded-full bg-amber-600 text-white font-bold text-[10px] flex items-center justify-center">
+                  3
+                </span>
+                <span>Your table number is automatically detected!</span>
+              </div>
+            </div>
+
+            {/* Fallback Table Entry Option */}
+            <div className="mt-5 pt-4 border-t border-stone-100 text-left">
+              <label
+                htmlFor="modalTableInput"
+                className="block text-[11px] font-bold text-stone-700 uppercase tracking-wider mb-1.5 flex items-center gap-1"
+              >
+                <Hash className="w-3 h-3 text-amber-600" />
+                <span>Or Enter Table Number Manually:</span>
+              </label>
+
+              <form onSubmit={handleSaveManualTable} className="flex gap-2">
+                <input
+                  id="modalTableInput"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={manualTableInput}
+                  onChange={(e) => {
+                    setManualTableInput(e.target.value);
+                    if (manualTableError) setManualTableError(null);
+                  }}
+                  placeholder="e.g. 5"
+                  className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-xl border border-stone-300 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1"
+                >
+                  <Check className="w-3 h-3" />
+                  <span>Set</span>
+                </button>
+              </form>
+
+              {manualTableError && (
+                <p className="mt-1.5 text-[11px] text-rose-600 font-medium">
+                  {manualTableError}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsScanModalOpen(false)}
+              className="mt-4 w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-xl transition"
+            >
+              Continue Browsing Menu
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
