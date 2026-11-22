@@ -518,7 +518,7 @@ describe('Phase 14 — Menu Management & Order Snapshots (Unit Tests)', () => {
       }
     }
 
-    expect(categoryNames.size).toBe(8); // Momos, Soup, Mains, Sundae, Mojito / Lassi, Milkshakes & Cold Coffee, Cheat Meal, Sides
-    expect(itemNames.size).toBe(65); // 65 total items across all 8 categories
+    expect(categoryNames.size).toBe(6); // Mains, Sundae, Mojito, Milkshake, Cheat Meal, Sides
+    expect(itemNames.size).toBe(59); // 59 total items across all 6 menu categories
   });
 });

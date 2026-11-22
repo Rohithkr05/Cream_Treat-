@@ -1130,5 +1130,66 @@ describe('OrdersService', () => {
       expect(mockOrdersGateway.emitOrderStatusUpdated).not.toHaveBeenCalled();
     });
   });
+
+  describe('Optional Category Snapshot Capture on Order Creation', () => {
+    it('attaches categoryIdSnapshot and categoryNameSnapshot when categoryModel is injected', async () => {
+      const catId = new Types.ObjectId();
+      const foodId = new Types.ObjectId();
+
+      let savedPayload: Record<string, unknown> | null = null;
+      function CapturingOrderModel(this: unknown, dto: Record<string, unknown>) {
+        savedPayload = dto;
+        Object.assign(this as object, mockOrderInstance, dto, {
+          _id: new Types.ObjectId('670d00000000000000000099'),
+          save: vi.fn().mockImplementation(function (this: unknown) {
+            return Promise.resolve(this);
+          }),
+        });
+      }
+
+      const localCounter = {
+        findOneAndUpdate: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue({ sequence: 3 }),
+        }),
+      };
+      const localFood = {
+        findById: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue({
+            _id: foodId,
+            categoryId: catId,
+            name: 'Brownie Sundae',
+            price: 18000,
+            isAvailable: true,
+          }),
+        }),
+      };
+      const localCat = {
+        findById: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue({
+            _id: catId,
+            name: 'Sundae',
+          }),
+        }),
+      };
+
+      const svc = new OrdersService(
+        CapturingOrderModel as never,
+        localCounter as never,
+        localFood as never,
+        undefined,
+        localCat as never,
+      );
+
+      await svc.create({
+        tableNumber: 2,
+        items: [{ foodItemId: foodId.toString(), quantity: 2 }],
+      });
+
+      const items = (savedPayload as unknown as { items: Array<Record<string, unknown>> })?.items;
+      expect(items).toHaveLength(1);
+      expect(items[0].categoryIdSnapshot).toEqual(catId);
+      expect(items[0].categoryNameSnapshot).toBe('Sundae');
+    });
+  });
 });
 

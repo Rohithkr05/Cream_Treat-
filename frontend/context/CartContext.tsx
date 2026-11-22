@@ -9,6 +9,14 @@ import React, {
   useMemo,
 } from 'react';
 import { CartItem, FoodItem } from '@/types/menu';
+import {
+  isValidMongoObjectId,
+  sanitizeCartItems,
+  addCartItem,
+  decrementCartItem,
+  deleteCartItem,
+  setCartItemQuantity,
+} from '@/lib/checkout';
 
 interface CartContextType {
   items: CartItem[];
@@ -34,12 +42,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [tableNumber, setTableNumberState] = useState<number | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Restore cart and table from localStorage on mount
+  // Restore cart and table from localStorage on mount (dropping any stale client_* IDs)
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem(CART_STORAGE_KEY);
       if (savedCart) {
-        setItems(JSON.parse(savedCart));
+        const parsed = JSON.parse(savedCart);
+        const { items: cleanItems, removedInvalidCount } = sanitizeCartItems(parsed);
+        setItems(cleanItems);
+        if (removedInvalidCount > 0) {
+          console.warn(
+            `[Cream Treat Cart] Removed ${removedInvalidCount} invalid or outdated item(s) from saved cart.`,
+          );
+        }
       }
 
       const savedTable = localStorage.getItem(TABLE_STORAGE_KEY);
@@ -81,58 +96,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addItem = useCallback((foodItem: FoodItem) => {
-    if (!foodItem.isAvailable) return;
-
-    setItems((prev) => {
-      const existingIndex = prev.findIndex(
-        (ci) => ci.foodItem._id === foodItem._id,
+    if (!foodItem.isAvailable || !isValidMongoObjectId(foodItem._id)) {
+      console.warn(
+        `[Cream Treat Cart] Ignored attempt to add item "${foodItem?.name || 'unknown'}" without a valid backend ObjectId.`,
       );
+      return;
+    }
 
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + 1,
-        };
-        return updated;
-      }
-
-      return [...prev, { foodItem, quantity: 1 }];
-    });
+    setItems((prev) => addCartItem(prev, foodItem));
   }, []);
 
   const removeItem = useCallback((foodItemId: string) => {
-    setItems((prev) => {
-      const existing = prev.find((ci) => ci.foodItem._id === foodItemId);
-      if (!existing) return prev;
-
-      if (existing.quantity <= 1) {
-        return prev.filter((ci) => ci.foodItem._id !== foodItemId);
-      }
-
-      return prev.map((ci) =>
-        ci.foodItem._id === foodItemId
-          ? { ...ci, quantity: ci.quantity - 1 }
-          : ci,
-      );
-    });
+    setItems((prev) => decrementCartItem(prev, foodItemId));
   }, []);
 
   const deleteItem = useCallback((foodItemId: string) => {
-    setItems((prev) => prev.filter((ci) => ci.foodItem._id !== foodItemId));
+    setItems((prev) => deleteCartItem(prev, foodItemId));
   }, []);
 
   const updateQuantity = useCallback(
     (foodItemId: string, quantity: number) => {
-      setItems((prev) => {
-        if (quantity <= 0) {
-          return prev.filter((ci) => ci.foodItem._id !== foodItemId);
-        }
-
-        return prev.map((ci) =>
-          ci.foodItem._id === foodItemId ? { ...ci, quantity } : ci,
-        );
-      });
+      setItems((prev) => setCartItemQuantity(prev, foodItemId, quantity));
     },
     [],
   );

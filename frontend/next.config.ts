@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
-const allowedDevOrigins: string[] = ["localhost", "127.0.0.1"];
+const allowedDevOrigins: string[] = [
+  "localhost",
+  "127.0.0.1",
+  "192.168.70.111",
+  "*.local",
+];
+
 if (process.env.NEXT_PUBLIC_APP_URL) {
   try {
     const host = new URL(process.env.NEXT_PUBLIC_APP_URL).hostname;
@@ -15,8 +21,6 @@ if (process.env.NEXT_PUBLIC_APP_URL) {
 const nextConfig: NextConfig = {
   /* config options here */
   allowedDevOrigins,
-  cacheComponents: true,
-  partialPrefetching: true,
   turbopack: {
     rules: {
       "*.css": {

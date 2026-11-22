@@ -29,11 +29,25 @@ export class FoodItemsService {
       filter.categoryId = new Types.ObjectId(categoryId);
     }
 
-    return this.foodItemModel
+    const items = await this.foodItemModel
       .find(filter)
       .populate('categoryId', 'name displayOrder isActive')
       .sort({ displayOrder: 1, name: 1 })
       .exec();
+
+    return items.filter((item) => {
+      const category = item.categoryId as unknown as
+        | { isActive?: boolean }
+        | undefined;
+      if (
+        category &&
+        typeof category === 'object' &&
+        category.isActive === false
+      ) {
+        return false;
+      }
+      return true;
+    });
   }
 
   /**

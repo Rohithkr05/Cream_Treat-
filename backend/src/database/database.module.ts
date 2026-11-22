@@ -2,6 +2,17 @@ import { Module, Logger } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import type { Connection } from 'mongoose';
+import dns from 'node:dns';
+
+// Ensure Windows local loopback DNS does not block MongoDB Atlas SRV lookups
+try {
+  const currentServers = dns.getServers();
+  if (currentServers.every((s) => s === '127.0.0.1' || s === '::1')) {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  }
+} catch {
+  // Ignore fallback failure in restricted environments
+}
 
 /**
  * Sanitizes a MongoDB connection string for safe logging by masking credentials.

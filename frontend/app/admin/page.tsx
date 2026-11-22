@@ -10,6 +10,7 @@ import {
   formatCurrency,
   getAdminToken,
   getStoredAdminUser,
+  updateAdminOrderStatus,
 } from '@/lib/api';
 import {
   createOrderSocket,
@@ -19,12 +20,24 @@ import {
 } from '@/lib/socket';
 import { AdminOrder, AdminOrdersPagination, AdminUser } from '@/types/admin';
 import { OrderStatus } from '@/types/menu';
+import { AdminLayout } from '@/components/AdminLayout';
+import {
+  UtensilsCrossed,
+  RefreshCw,
+  ChefHat,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  AlertCircle,
+  Hash,
+  Check,
+} from 'lucide-react';
 
 const STATUS_FILTERS: { label: string; value: OrderStatus | 'ALL' }[] = [
-  { label: 'All', value: 'ALL' },
+  { label: 'All Orders', value: 'ALL' },
   { label: 'New', value: 'NEW' },
   { label: 'Accepted', value: 'ACCEPTED' },
-  { label: 'Preparing', value: 'PREPARING' },
+  { label: 'In Kitchen', value: 'PREPARING' },
   { label: 'Ready', value: 'READY' },
   { label: 'Completed', value: 'COMPLETED' },
   { label: 'Cancelled', value: 'CANCELLED' },
@@ -35,53 +48,61 @@ function getStatusBadge(status: OrderStatus) {
     case 'NEW':
       return {
         label: 'New Order',
-        className: 'bg-amber-50 text-amber-800 border-amber-200',
-        dot: 'bg-amber-500',
+        className: 'bg-[#FDF6E2] text-[#8C5D00] border-[#E8D194]',
+        dot: 'bg-[#B8860B] animate-pulse',
       };
     case 'ACCEPTED':
       return {
         label: 'Accepted',
-        className: 'bg-blue-50 text-blue-800 border-blue-200',
-        dot: 'bg-blue-500',
+        className: 'bg-[#EEF4FB] text-[#2B5480] border-[#C3D8EF]',
+        dot: 'bg-[#3B72A8]',
       };
     case 'PREPARING':
       return {
-        label: 'Preparing',
-        className: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-        dot: 'bg-indigo-500',
+        label: 'In Kitchen',
+        className: 'bg-[#F0EFF8] text-[#4E447A] border-[#D1CEE8]',
+        dot: 'bg-[#6B5DA8] animate-pulse',
       };
     case 'READY':
       return {
-        label: 'Ready',
-        className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-        dot: 'bg-emerald-500',
+        label: 'Ready to Serve',
+        className: 'bg-[#EEF6EF] text-[#2B6633] border-[#BADBBE]',
+        dot: 'bg-[#3B8E47]',
       };
     case 'COMPLETED':
       return {
         label: 'Completed',
-        className: 'bg-stone-100 text-stone-700 border-stone-200',
-        dot: 'bg-stone-400',
+        className: 'bg-[#EFE6DC]/50 text-[#6A0019]/75 border-[#6A0019]/20',
+        dot: 'bg-[#6A0019]/40',
       };
     case 'CANCELLED':
       return {
         label: 'Cancelled',
-        className: 'bg-red-50 text-red-800 border-red-200',
-        dot: 'bg-red-500',
+        className: 'bg-[#FDF0ED] text-[#9E3524] border-[#F2C2B8]',
+        dot: 'bg-[#B83E2A]',
       };
     default:
       return {
         label: status,
-        className: 'bg-stone-100 text-stone-700 border-stone-200',
-        dot: 'bg-stone-400',
+        className: 'bg-[#EFE6DC]/40 text-[#2C1810]/70 border-[#6A0019]/15',
+        dot: 'bg-[#2C1810]/40',
       };
   }
 }
 
-function formatOrderTime(dateStr?: string) {
+function formatRelativeTime(dateStr?: string) {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const orderTime = new Date(dateStr).getTime();
+    const now = Date.now();
+    const diffSec = Math.floor((now - orderTime) / 1000);
+
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   } catch {
     return dateStr;
   }
@@ -93,6 +114,34 @@ function getTodayDateString(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+// Kitchen Audio Chime for incoming orders
+function playKitchenChime() {
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.15); // A5
+
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.7);
+  } catch {
+    // Audio autoplay restrictions
+  }
 }
 
 export default function AdminDashboardPage() {
@@ -115,26 +164,34 @@ export default function AdminDashboardPage() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [socketStatus, setSocketStatus] =
-    useState<SocketConnectionState>('polling-fallback');
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [socketStatus, setSocketStatus] = useState<SocketConnectionState>('polling-fallback');
 
-  // Initialize service date in useEffect on client mount
   useEffect(() => {
     const today = getTodayDateString();
     setTodayDate(today);
     setFilterDate(today);
   }, []);
 
-  // Summary counts for today's orders
   const [summary, setSummary] = useState({
     todayTotal: 0,
     newCount: 0,
+    acceptedCount: 0,
+    cancelledCount: 0,
     preparingCount: 0,
     readyCount: 0,
     completedCount: 0,
   });
 
-  // Verify Admin Session on mount
+  const [cancelModal, setCancelModal] = useState<{
+    isOpen: boolean;
+    order: AdminOrder | null;
+  }>({
+    isOpen: false,
+    order: null,
+  });
+
+  // Verify Admin Session
   useEffect(() => {
     let isMounted = true;
 
@@ -170,7 +227,7 @@ export default function AdminDashboardPage() {
     };
   }, [router]);
 
-  // Load orders & summary metrics from backend
+  // Load orders
   const loadOrdersData = useCallback(
     async (showRefreshIndicator = false) => {
       if (showRefreshIndicator) {
@@ -192,7 +249,6 @@ export default function AdminDashboardPage() {
         setOrders(res.data);
         setPagination(res.pagination);
 
-        // Fetch today's orders metrics (for summary cards) if date is today
         const todayStr = getTodayDateString();
         const summaryRes = await fetchAdminOrders({
           date: todayStr,
@@ -203,6 +259,8 @@ export default function AdminDashboardPage() {
         setSummary({
           todayTotal: summaryRes.pagination.total,
           newCount: todayItems.filter((o) => o.status === 'NEW').length,
+          acceptedCount: todayItems.filter((o) => o.status === 'ACCEPTED').length,
+          cancelledCount: todayItems.filter((o) => o.status === 'CANCELLED').length,
           preparingCount: todayItems.filter((o) => o.status === 'PREPARING').length,
           readyCount: todayItems.filter((o) => o.status === 'READY').length,
           completedCount: todayItems.filter((o) => o.status === 'COMPLETED').length,
@@ -225,33 +283,56 @@ export default function AdminDashboardPage() {
     [filterDate, pagination.page, router, selectedStatus],
   );
 
-  // Trigger load on filter or page changes
   useEffect(() => {
     if (!isAuthChecking) {
       loadOrdersData();
     }
   }, [isAuthChecking, loadOrdersData]);
 
-  // Light auto-refresh interval: 10s conservative polling on active dashboard as fallback
+  // Background polling fallback every 10s
   useEffect(() => {
     if (isAuthChecking) return;
-
     const intervalId = setInterval(() => {
-      // Background silent refresh
       loadOrdersData(false);
     }, 10000);
-
     return () => clearInterval(intervalId);
   }, [isAuthChecking, loadOrdersData]);
 
-  // Real-time updates via Socket.IO
+  // Quick 1-Click Status Advance Handler
+  const handleQuickStatus = async (orderId: string, nextStatus: OrderStatus) => {
+    try {
+      setUpdatingOrderId(orderId);
+      const updated = await updateAdminOrderStatus(orderId, nextStatus);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: updated.status } : o)),
+      );
+      loadOrdersData(false);
+    } catch (err) {
+      console.error('Failed to advance order status', err);
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const handleCancelClick = (order: AdminOrder) => {
+    setCancelModal({
+      isOpen: true,
+      order,
+    });
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelModal.order) return;
+    const orderId = cancelModal.order.id;
+    setCancelModal({ isOpen: false, order: null });
+    await handleQuickStatus(orderId, 'CANCELLED');
+  };
+
+  // Real-time WebSocket Gateway connection
   useEffect(() => {
     if (isAuthChecking) return;
 
-    const token = getAdminToken();
-    if (!token) return;
-
-    const socket = createOrderSocket(token);
+    const socket = createOrderSocket();
 
     socket.on('connect', () => {
       setSocketStatus('connected');
@@ -261,30 +342,11 @@ export default function AdminDashboardPage() {
       setSocketStatus('reconnecting');
     });
 
-    socket.on('connect_error', () => {
-      setSocketStatus('polling-fallback');
-    });
-
-    // Reconcile with REST API on reconnection
-    socket.on('reconnect', () => {
-      setSocketStatus('connected');
-      loadOrdersData(false);
-    });
-
-    // Listen for new orders created by customers
     socket.on('order.created', (newOrder: OrderCreatedSocketEvent) => {
-      // 1. Avoid duplicate orders if already present in state
+      playKitchenChime();
+
       setOrders((prev) => {
         if (prev.some((o) => o.id === newOrder.id)) {
-          return prev;
-        }
-
-        // 2. Check if new order satisfies the active filters
-        if (filterDate && newOrder.orderDate !== filterDate) {
-          return prev;
-        }
-
-        if (selectedStatus !== 'ALL' && newOrder.status !== selectedStatus) {
           return prev;
         }
 
@@ -293,10 +355,10 @@ export default function AdminDashboardPage() {
           orderNumber: newOrder.orderNumber,
           orderDate: newOrder.orderDate,
           tableNumber: newOrder.tableNumber,
-          items: newOrder.items,
+          status: newOrder.status,
+          items: newOrder.items || [],
           subtotal: newOrder.subtotal,
           total: newOrder.total,
-          status: newOrder.status,
           createdAt: newOrder.createdAt,
           updatedAt: newOrder.updatedAt,
         };
@@ -304,19 +366,6 @@ export default function AdminDashboardPage() {
         return [mappedOrder, ...prev];
       });
 
-      // Update pagination total if order satisfied filter
-      const matchesFilter =
-        (!filterDate || newOrder.orderDate === filterDate) &&
-        (selectedStatus === 'ALL' || newOrder.status === selectedStatus);
-
-      if (matchesFilter) {
-        setPagination((prev) => ({
-          ...prev,
-          total: prev.total + 1,
-        }));
-      }
-
-      // Update summary counts if order is today's
       const todayStr = getTodayDateString();
       if (newOrder.orderDate === todayStr) {
         setSummary((prev) => ({
@@ -327,79 +376,25 @@ export default function AdminDashboardPage() {
       }
     });
 
-    // Listen for status updates changed by another administrator
-    socket.on(
-      'order.status.updated',
-      (updatedOrder: OrderStatusUpdatedSocketEvent) => {
-        setOrders((prev) => {
-          const existingIndex = prev.findIndex((o) => o.id === updatedOrder.id);
-          if (existingIndex === -1) {
-            return prev;
-          }
-
-          const existing = prev[existingIndex];
-
-          // Guard against stale events
-          if (
-            existing.updatedAt &&
-            updatedOrder.updatedAt &&
-            new Date(updatedOrder.updatedAt) < new Date(existing.updatedAt)
-          ) {
-            return prev;
-          }
-
-          // If current status filter is active and status moved away, remove from list
-          if (
-            selectedStatus !== 'ALL' &&
-            updatedOrder.status !== selectedStatus
-          ) {
-            return prev.filter((o) => o.id !== updatedOrder.id);
-          }
-
-          // Update order in place
-          const next = [...prev];
-          next[existingIndex] = {
-            ...existing,
-            status: updatedOrder.status,
-            updatedAt: updatedOrder.updatedAt,
-            ...(updatedOrder.tableNumber !== undefined
-              ? { tableNumber: updatedOrder.tableNumber }
-              : {}),
-            ...(updatedOrder.total !== undefined
-              ? { total: updatedOrder.total }
-              : {}),
-            ...(updatedOrder.items ? { items: updatedOrder.items } : {}),
-          };
-          return next;
-        });
-
-        // Silently refresh summary counts for today's orders
-        const todayStr = getTodayDateString();
-        fetchAdminOrders({ date: todayStr, limit: 50 })
-          .then((summaryRes) => {
-            const todayItems = summaryRes.data;
-            setSummary({
-              todayTotal: summaryRes.pagination.total,
-              newCount: todayItems.filter((o) => o.status === 'NEW').length,
-              preparingCount: todayItems.filter(
-                (o) => o.status === 'PREPARING',
-              ).length,
-              readyCount: todayItems.filter((o) => o.status === 'READY')
-                .length,
-              completedCount: todayItems.filter(
-                (o) => o.status === 'COMPLETED',
-              ).length,
-            });
-          })
-          .catch(() => {});
-      },
-    );
+    socket.on('order.status.updated', (updatedOrder: OrderStatusUpdatedSocketEvent) => {
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === updatedOrder.id
+            ? {
+                ...o,
+                status: updatedOrder.status,
+                updatedAt: updatedOrder.updatedAt,
+              }
+            : o,
+        ),
+      );
+    });
 
     return () => {
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [filterDate, isAuthChecking, loadOrdersData, selectedStatus]);
+  }, [isAuthChecking]);
 
   const handleManualRefresh = () => {
     if (isRefreshing || isLoadingOrders) return;
@@ -417,474 +412,408 @@ export default function AdminDashboardPage() {
 
   if (isAuthChecking) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-stone-100 p-4">
+      <main className="min-h-screen flex items-center justify-center bg-[#FBF7F2] p-4 font-body">
         <div className="text-center">
-          <div className="w-8 h-8 border-3 border-stone-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-stone-600">Verifying session...</p>
+          <div className="w-8 h-8 border-3 border-[#6A0019] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs uppercase tracking-widest text-[#2C1810]/70 font-semibold">
+            Verifying Admin Session...
+          </p>
         </div>
       </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900">
-      {/* Top Header Navigation */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <div>
-              <h1 className="font-bold tracking-tight text-base sm:text-lg text-stone-900 uppercase">
-                CREAM TREAT
-              </h1>
-              <p className="text-[11px] font-medium text-stone-500 -mt-1 hidden sm:block">
-                Admin Dashboard
-              </p>
-            </div>
+    <AdminLayout
+      activeNav="orders"
+      title="Live Orders"
+      subtitle="Incoming table orders and real-time kitchen status progression."
+      admin={admin}
+      socketStatus={socketStatus}
+      onRefresh={handleManualRefresh}
+      isRefreshing={isRefreshing}
+      onLogout={handleLogout}
+      isLoggingOut={isLoggingOut}
+      headerActions={
+        <button
+          type="button"
+          onClick={handleManualRefresh}
+          disabled={isRefreshing || isLoadingOrders}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-[#6A0019]/20 text-[#6A0019] text-xs font-semibold hover:bg-[#EFE6DC]/30 active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-2xs"
+          title="Refresh Orders"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+      }
+    >
+      <div className="space-y-6">
+        {/* Error Alert */}
+        {errorMessage && (
+          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-900 text-xs rounded-xl flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
           </div>
+        )}
 
-          {/* Simple Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs font-medium text-stone-600">
-            <span className="px-3 py-1 bg-white text-stone-900 rounded-lg shadow-xs font-semibold">
-              Dashboard
-            </span>
-            <span className="px-3 py-1 text-stone-500 hover:text-stone-900 cursor-default">
-              Orders
-            </span>
-            <Link
-              href="/admin/menu"
-              className="px-3 py-1 text-stone-600 hover:text-stone-900 hover:bg-white/60 rounded-lg transition-colors font-medium"
-            >
-              Menu
-            </Link>
-            <Link
-              href="/admin/qr"
-              className="px-3 py-1 text-stone-600 hover:text-stone-900 hover:bg-white/60 rounded-lg transition-colors font-medium"
-            >
-              QR Codes
-            </Link>
-          </nav>
-
-          {/* Right Action Profile & Refresh */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Subtle Connection Status Indicator */}
-            <div
-              id="socket-connection-indicator"
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                socketStatus === 'connected'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : socketStatus === 'reconnecting'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-stone-100 text-stone-600 border-stone-200'
-              }`}
-              title={
-                socketStatus === 'connected'
-                  ? 'Real-time WebSocket connected'
-                  : socketStatus === 'reconnecting'
-                    ? 'Reconnecting to real-time server...'
-                    : 'Using background polling fallback'
-              }
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  socketStatus === 'connected'
-                    ? 'bg-emerald-500 animate-pulse'
-                    : socketStatus === 'reconnecting'
-                      ? 'bg-amber-500 animate-ping'
-                      : 'bg-stone-400'
-                }`}
-              />
-              <span>
-                {socketStatus === 'connected'
-                  ? 'Connected'
-                  : socketStatus === 'reconnecting'
-                    ? 'Reconnecting'
-                    : 'Polling fallback'}
-              </span>
+        {/* 1. Concise Metric Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white border border-[#6A0019]/15 rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-xs text-[#2C1810]/70 font-medium">
+              <span>Today's Total</span>
+              <span className="font-mono text-[10px] uppercase tracking-wider">All</span>
             </div>
-
-            <button
-              type="button"
-              id="admin-refresh-btn"
-              onClick={handleManualRefresh}
-              disabled={isRefreshing || isLoadingOrders}
-              className="px-3 py-1.5 text-xs font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
-              title="Refresh order queue"
-            >
-              <span
-                className={`inline-block ${
-                  isRefreshing ? 'animate-spin' : ''
-                }`}
-              >
-                ↻
-              </span>
-              <span className="hidden sm:inline">
-                {isRefreshing ? 'Refreshing...' : 'Refresh'}
-              </span>
-            </button>
-
-            <div className="hidden lg:block text-right">
-              <p className="text-xs font-semibold text-stone-900">
-                {admin?.name || 'Administrator'}
-              </p>
-              <p className="text-[11px] text-stone-500">{admin?.email}</p>
-            </div>
-
-            <button
-              type="button"
-              id="admin-logout-btn"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="px-3 py-1.5 text-xs font-semibold text-red-700 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition disabled:opacity-50"
-            >
-              {isLoggingOut ? 'Logging out...' : 'Logout'}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Admin Workspace */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Welcome Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-stone-900">
-              Incoming Orders
-            </h2>
-            <p className="text-xs sm:text-sm text-stone-500 mt-0.5">
-              Live customer table orders sorted newest first.
+            <p className="font-display text-2xl font-bold text-[#6A0019] mt-1 tabular-nums">
+              {summary.todayTotal}
             </p>
           </div>
 
-          {/* Date Selector Filter */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="order-date-filter" className="text-xs font-medium text-stone-600">
-              Service Date:
-            </label>
-            <input
-              id="order-date-filter"
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-medium text-stone-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-stone-900"
-            />
-            {todayDate && filterDate !== todayDate && (
-              <button
-                type="button"
-                onClick={() => setFilterDate(todayDate)}
-                className="text-xs text-stone-500 hover:text-stone-900 underline underline-offset-2"
-              >
-                Today
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Real Summary Cards (Part 12) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-xs">
-            <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
-              Today&apos;s Orders
-            </span>
-            <span className="text-2xl sm:text-3xl font-bold text-stone-900 mt-1 block">
-              {summary.todayTotal}
-            </span>
-          </div>
-
-          <div className="bg-white border border-amber-200 rounded-xl p-4 shadow-xs">
-            <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block flex items-center justify-between">
-              <span>New</span>
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-            </span>
-            <span className="text-2xl sm:text-3xl font-bold text-amber-900 mt-1 block">
+          <div className="bg-[#FDF6E2] border border-[#E8D194] rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-[#8C5D00] text-xs font-bold">
+              <span>New Incoming</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#B8860B] animate-pulse" />
+            </div>
+            <p className="font-display text-2xl font-bold text-[#8C5D00] mt-1 tabular-nums">
               {summary.newCount}
-            </span>
+            </p>
           </div>
 
-          <div className="bg-white border border-indigo-200 rounded-xl p-4 shadow-xs">
-            <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wider block flex items-center justify-between">
-              <span>Preparing</span>
-              <span className="w-2 h-2 rounded-full bg-indigo-500" />
-            </span>
-            <span className="text-2xl sm:text-3xl font-bold text-indigo-900 mt-1 block">
-              {summary.preparingCount}
-            </span>
+          <div className="bg-[#EEF6EF] border border-[#BADBBE] rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-[#2B6633] text-xs font-bold">
+              <span>Accepted</span>
+              <CheckCircle2 className="w-4 h-4 text-[#2B6633]" />
+            </div>
+            <p className="font-display text-2xl font-bold text-[#2B6633] mt-1 tabular-nums">
+              {summary.acceptedCount}
+            </p>
           </div>
 
-          <div className="bg-white border border-emerald-200 rounded-xl p-4 shadow-xs">
-            <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block flex items-center justify-between">
-              <span>Ready</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-2xl sm:text-3xl font-bold text-emerald-900 mt-1 block">
-              {summary.readyCount}
-            </span>
+          <div className="bg-[#FDF0ED] border border-[#F2C2B8] rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-[#9E3524] text-xs font-bold">
+              <span>Cancelled</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#B83E2A]" />
+            </div>
+            <p className="font-display text-2xl font-bold text-[#9E3524] mt-1 tabular-nums">
+              {summary.cancelledCount}
+            </p>
           </div>
         </div>
 
-        {/* Status Filter Bar (Part 13) */}
-        <div className="bg-white border border-stone-200 rounded-xl p-2 mb-6 shadow-xs flex items-center gap-1.5 overflow-x-auto">
+        {/* 2. Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
           {STATUS_FILTERS.map((filter) => {
-            const isActive = selectedStatus === filter.value;
+            const isSelected = selectedStatus === filter.value;
+            let filterCount = 0;
+            if (filter.value === 'ALL') filterCount = summary.todayTotal;
+            else if (filter.value === 'NEW') filterCount = summary.newCount;
+            else if (filter.value === 'ACCEPTED') filterCount = summary.acceptedCount;
+            else if (filter.value === 'PREPARING') filterCount = summary.preparingCount;
+            else if (filter.value === 'READY') filterCount = summary.readyCount;
+            else if (filter.value === 'COMPLETED') filterCount = summary.completedCount;
+            else if (filter.value === 'CANCELLED') filterCount = summary.cancelledCount;
+
             return (
               <button
                 key={filter.value}
-                type="button"
-                id={`filter-${filter.value.toLowerCase()}`}
                 onClick={() => setSelectedStatus(filter.value)}
-                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap transition ${
-                  isActive
-                    ? 'bg-stone-900 text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+                className={`shrink-0 min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#6A0019] text-[#EFE6DC] shadow-xs'
+                    : 'bg-white text-[#2C1810]/75 border border-[#6A0019]/15 hover:bg-[#EFE6DC]/30 hover:text-[#6A0019]'
                 }`}
               >
-                {filter.label}
+                <span>{filter.label}</span>
+                {filterCount > 0 && (
+                  <span
+                    className={`ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] tabular-nums font-bold ${
+                      isSelected
+                        ? 'bg-[#EFE6DC]/20 text-[#EFE6DC]'
+                        : 'bg-[#6A0019]/10 text-[#6A0019]'
+                    }`}
+                  >
+                    {filterCount}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
 
-        {/* Error State Banner (Part 22) */}
-        {errorMessage && (
-          <div
-            role="alert"
-            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between gap-4"
-          >
-            <div className="text-xs sm:text-sm text-red-800">
-              <strong className="font-semibold">Error: </strong>
-              {errorMessage}
-            </div>
-            <button
-              type="button"
-              onClick={handleManualRefresh}
-              className="px-3 py-1 bg-red-800 text-white text-xs font-medium rounded-lg hover:bg-red-900 transition shrink-0"
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {/* Loading Skeleton (Part 20) */}
+        {/* 3. Orders Listing */}
         {isLoadingOrders ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="bg-white border border-stone-200 rounded-xl p-4 animate-pulse flex items-center justify-between"
+                className="bg-white border border-[#6A0019]/15 rounded-2xl p-5 animate-pulse flex justify-between"
               >
                 <div className="space-y-2">
-                  <div className="w-24 h-4 bg-stone-200 rounded" />
-                  <div className="w-36 h-3 bg-stone-100 rounded" />
+                  <div className="w-28 h-5 bg-[#6A0019]/10 rounded-lg" />
+                  <div className="w-44 h-4 bg-[#6A0019]/5 rounded" />
                 </div>
-                <div className="w-20 h-6 bg-stone-200 rounded-lg" />
+                <div className="w-24 h-8 bg-[#6A0019]/10 rounded-xl" />
               </div>
             ))}
           </div>
         ) : orders.length === 0 ? (
-          /* Empty State (Part 21) */
-          <div className="bg-white border border-stone-200 rounded-2xl p-10 text-center shadow-xs">
-            <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3 text-stone-400 text-lg">
-              🍽️
+          <div className="bg-white border border-[#6A0019]/15 rounded-2xl p-12 text-center shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-[#EFE6DC]/40 text-[#6A0019] flex items-center justify-center mx-auto mb-3">
+              <UtensilsCrossed className="w-6 h-6 stroke-[1.8]" />
             </div>
-            <h3 className="font-semibold text-stone-900 text-base">
+            <h3 className="font-display font-bold text-[#6A0019] text-base">
               No orders found
             </h3>
-            <p className="text-xs sm:text-sm text-stone-500 mt-1 max-w-sm mx-auto">
+            <p className="text-xs text-[#2C1810]/60 mt-1 max-w-sm mx-auto font-body">
               {selectedStatus !== 'ALL'
-                ? 'No orders currently match the selected status filter.'
-                : filterDate && todayDate && filterDate === todayDate
-                ? 'No orders have been placed today.'
-                : `No orders recorded for ${filterDate || 'selected date'}.`}
+                ? `There are currently no orders with status "${selectedStatus}".`
+                : 'Customer orders placed by scanning dining table QR codes will appear here in real time.'}
             </p>
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={handleManualRefresh}
-                className="px-4 py-2 bg-stone-900 text-white text-xs font-medium rounded-xl hover:bg-stone-800 transition"
-              >
-                Refresh Orders
-              </button>
-            </div>
           </div>
         ) : (
-          <>
-            {/* Mobile Card View (Part 14) */}
-            <div className="grid grid-cols-1 gap-3 md:hidden">
-              {orders.map((order) => {
-                const badge = getStatusBadge(order.status);
-                const totalItemCount = order.items.reduce(
-                  (sum, it) => sum + it.quantity,
-                  0,
-                );
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {orders.map((order) => {
+              const badge = getStatusBadge(order.status);
+              const isUpdatingThis = updatingOrderId === order.id;
+              const isNew = order.status === 'NEW';
 
-                return (
-                  <div
-                    key={order.id}
-                    className="bg-white border border-stone-200 rounded-xl p-4 shadow-xs"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-base text-stone-900">
+              return (
+                <div
+                  key={order.id}
+                  className={`bg-white border rounded-2xl p-5 shadow-xs transition-all flex flex-col justify-between gap-4 ${
+                    isNew
+                      ? 'border-[#E8D194] bg-[#FDFBF7] ring-2 ring-[#B8860B]/25'
+                      : 'border-[#6A0019]/15 hover:border-[#6A0019]/30'
+                  }`}
+                >
+                  <div>
+                    {/* Top Order Row: High-Visibility Table Badge */}
+                    <div className="flex items-center justify-between mb-3.5">
+                      <div className="flex items-center gap-2.5">
+                        {/* Prominent Burgundy Table Badge */}
+                        <div className="px-3.5 py-1.5 rounded-xl bg-[#6A0019] text-[#EFE6DC] font-display font-bold text-xs uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                          <Hash className="w-3.5 h-3.5" />
+                          <span>Table {order.tableNumber}</span>
+                        </div>
+
+                        <span className="font-mono text-xs font-bold text-[#2C1810]/60">
                           {order.orderNumber}
                         </span>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-stone-100 text-stone-700 border border-stone-200">
-                          Table {order.tableNumber}
-                        </span>
                       </div>
+
+                      {/* Status Chip */}
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${badge.className}`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${badge.className}`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                        {badge.label}
+                        <span>{badge.label}</span>
                       </span>
                     </div>
 
-                    {/* Ordered items preview */}
-                    <div className="my-2.5 border-y border-stone-100 py-2 text-xs text-stone-600 space-y-1">
-                      {order.items.slice(0, 3).map((item, idx) => (
-                        <div key={idx} className="flex justify-between">
-                          <span className="truncate pr-2">
-                            {item.name} × {item.quantity}
+                    {/* Ordered Items List */}
+                    <div className="border-t border-[#6A0019]/10 pt-3 pb-1 space-y-2">
+                      {order.items.map((it, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between items-baseline text-xs font-body"
+                        >
+                          <span className="font-medium text-[#2C1810] pr-2">
+                            <span className="font-bold text-[#6A0019] mr-1.5 font-mono">
+                              {it.quantity}×
+                            </span>
+                            {it.name}
                           </span>
-                          <span className="font-mono text-stone-500">
-                            {formatCurrency(item.itemTotal)}
+                          <span className="font-mono font-medium text-[#2C1810]/70 tabular-nums shrink-0">
+                            {formatCurrency(it.itemTotal)}
                           </span>
                         </div>
                       ))}
-                      {order.items.length > 3 && (
-                        <p className="text-[11px] text-stone-400 italic">
-                          +{order.items.length - 3} more items ({totalItemCount} total)
-                        </p>
-                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Action Section with 1-Click Status Progression */}
+                  <div className="border-t border-[#6A0019]/10 pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] text-[#2C1810]/60 uppercase tracking-wider font-semibold">
+                        Total:
+                      </span>
+                      <span className="font-bold text-[#6A0019] font-mono text-base tabular-nums">
+                        {formatCurrency(order.total)}
+                      </span>
+                      <span className="text-[11px] text-[#2C1810]/50 font-body ml-1">
+                        · {formatRelativeTime(order.createdAt)}
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1">
-                      <div>
-                        <span className="text-xs text-stone-500">Total: </span>
-                        <span className="font-bold text-stone-900 font-mono text-sm">
-                          {formatCurrency(order.total)}
-                        </span>
-                        <span className="text-[11px] text-stone-400 ml-2">
-                          {formatOrderTime(order.createdAt)}
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      {/* NEW -> Accept Order */}
+                      {order.status === 'NEW' && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingThis}
+                          onClick={() => handleQuickStatus(order.id, 'ACCEPTED')}
+                          className="w-full sm:w-auto min-h-[40px] px-4 py-2 bg-[#6A0019] hover:bg-[#520013] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {isUpdatingThis ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                              <span>Accepting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-4 h-4 stroke-[2.5]" />
+                              <span>Accept Order</span>
+                            </>
+                          )}
+                        </button>
+                      )}
 
+                      {/* ACCEPTED -> Start Preparing */}
+                      {order.status === 'ACCEPTED' && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingThis}
+                          onClick={() => handleQuickStatus(order.id, 'PREPARING')}
+                          className="w-full sm:w-auto min-h-[40px] px-4 py-2 bg-[#4E447A] hover:bg-[#3C3361] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {isUpdatingThis ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                              <span>Updating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ChefHat className="w-4 h-4" />
+                              <span>Send to Kitchen</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {/* PREPARING -> Mark Ready */}
+                      {order.status === 'PREPARING' && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingThis}
+                          onClick={() => handleQuickStatus(order.id, 'READY')}
+                          className="w-full sm:w-auto min-h-[40px] px-4 py-2 bg-[#2B6633] hover:bg-[#1E4D25] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {isUpdatingThis ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                              <span>Updating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Mark Ready</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {/* READY -> Complete Order */}
+                      {order.status === 'READY' && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingThis}
+                          onClick={() => handleQuickStatus(order.id, 'COMPLETED')}
+                          className="w-full sm:w-auto min-h-[40px] px-4 py-2 bg-[#6A0019] hover:bg-[#520013] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {isUpdatingThis ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                              <span>Completing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-4 h-4 stroke-[2.5]" />
+                              <span>Complete Order</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {/* COMPLETED Badge */}
+                      {order.status === 'COMPLETED' && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EFE6DC]/50 text-[#6A0019] border border-[#6A0019]/20 text-xs font-bold font-body">
+                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Completed</span>
+                        </span>
+                      )}
+
+                      {/* Cancelled Status Badge */}
+                      {order.status === 'CANCELLED' && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FDF0ED] text-[#9E3524] border border-[#F2C2B8] text-xs font-bold font-body">
+                          <span>Cancelled</span>
+                        </span>
+                      )}
+
+                      {/* Cancel Order Action */}
+                      {(order.status === 'NEW' || order.status === 'ACCEPTED' || order.status === 'PREPARING') && (
+                        <button
+                          type="button"
+                          disabled={isUpdatingThis}
+                          onClick={() => handleCancelClick(order)}
+                          className="px-3 py-2 text-xs font-semibold text-rose-700 hover:text-rose-900 hover:bg-rose-50 border border-rose-200/80 rounded-xl transition cursor-pointer text-center whitespace-nowrap disabled:opacity-50"
+                          title="Cancel this order"
+                        >
+                          Cancel
+                        </button>
+                      )}
+
+                      {/* Details Link */}
                       <Link
                         href={`/admin/orders/${order.id}`}
-                        className="text-xs font-semibold text-stone-900 hover:text-amber-800 bg-stone-50 hover:bg-stone-100 px-3 py-1.5 rounded-lg border border-stone-200 transition"
+                        className="px-3 py-2 text-xs font-semibold text-[#6A0019] hover:bg-[#6A0019]/5 border border-[#6A0019]/20 rounded-xl transition cursor-pointer text-center whitespace-nowrap"
                       >
-                        View Order →
+                        Details →
                       </Link>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Desktop Table View (Part 15) */}
-            <div className="hidden md:block bg-white border border-stone-200 rounded-xl overflow-hidden shadow-xs">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-stone-50 border-b border-stone-200 text-[11px] font-semibold text-stone-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Order</th>
-                    <th className="py-3 px-4">Table</th>
-                    <th className="py-3 px-4">Items</th>
-                    <th className="py-3 px-4">Total</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Time</th>
-                    <th className="py-3 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100 text-xs">
-                  {orders.map((order) => {
-                    const badge = getStatusBadge(order.status);
-                    const totalItemCount = order.items.reduce(
-                      (sum, it) => sum + it.quantity,
-                      0,
-                    );
-
-                    return (
-                      <tr
-                        key={order.id}
-                        className="hover:bg-stone-50/70 transition"
-                      >
-                        <td className="py-3.5 px-4 font-mono font-bold text-stone-900">
-                          {order.orderNumber}
-                        </td>
-                        <td className="py-3.5 px-4 font-medium text-stone-800">
-                          Table {order.tableNumber}
-                        </td>
-                        <td className="py-3.5 px-4 text-stone-600 max-w-xs">
-                          <span className="font-medium text-stone-900">
-                            {totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}
-                          </span>
-                          <span className="text-stone-400 mx-1.5">•</span>
-                          <span className="truncate">
-                            {order.items.map((i) => `${i.name} (${i.quantity})`).join(', ')}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-stone-900">
-                          {formatCurrency(order.total)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${badge.className}`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
-                            {badge.label}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-stone-500">
-                          {formatOrderTime(order.createdAt)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <Link
-                            href={`/admin/orders/${order.id}`}
-                            className="inline-block px-3 py-1.5 text-xs font-semibold text-stone-800 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg transition"
-                          >
-                            View →
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            {pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between mt-5 text-xs text-stone-500">
-                <span>
-                  Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} orders)
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={pagination.page <= 1}
-                    onClick={() =>
-                      setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
-                    }
-                    className="px-3 py-1 bg-white border border-stone-300 rounded-lg disabled:opacity-50 hover:bg-stone-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pagination.page >= pagination.totalPages}
-                    onClick={() =>
-                      setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
-                    }
-                    className="px-3 py-1 bg-white border border-stone-300 rounded-lg disabled:opacity-50 hover:bg-stone-50"
-                  >
-                    Next
-                  </button>
                 </div>
-              </div>
-            )}
-          </>
+              );
+            })}
+          </div>
         )}
-      </main>
-    </div>
+      </div>
+
+      {/* Cancel Order Confirmation Modal */}
+      {cancelModal.isOpen && cancelModal.order && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2C1810]/40 backdrop-blur-xs"
+        >
+          <div className="bg-[#FBF7F2] border border-[#E8DFD8] rounded-2xl max-w-sm w-full p-6 shadow-xl animate-in fade-in zoom-in-95 font-body">
+            <h3 className="text-base font-bold text-[#2C1810] mb-2 font-display">
+              Cancel Order #{cancelModal.order.orderNumber}?
+            </h3>
+            <p className="text-xs text-[#2C1810]/70 mb-6 leading-relaxed">
+              Are you sure you want to cancel the order for{' '}
+              <span className="font-bold text-[#6A0019]">Table {cancelModal.order.tableNumber}</span>?
+              This will mark the order as cancelled on the customer screen.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                disabled={Boolean(updatingOrderId)}
+                onClick={() => setCancelModal({ isOpen: false, order: null })}
+                className="px-4 py-2 text-xs font-semibold text-[#2C1810] bg-white border border-[#E8DFD8] hover:bg-[#EFE6DC]/50 rounded-xl transition cursor-pointer"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(updatingOrderId)}
+                onClick={handleConfirmCancel}
+                className="px-4 py-2 text-xs font-semibold rounded-xl text-white bg-rose-700 hover:bg-rose-800 transition cursor-pointer flex items-center gap-1.5"
+              >
+                {updatingOrderId ? 'Cancelling...' : 'Cancel Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
   );
 }

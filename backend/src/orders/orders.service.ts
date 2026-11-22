@@ -16,6 +16,10 @@ import {
   FoodItem,
   FoodItemDocument,
 } from '../menu/schemas/food-item.schema.js';
+import {
+  Category,
+  CategoryDocument,
+} from '../menu/schemas/category.schema.js';
 import { CreateOrderDto } from './dto/create-order.dto.js';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto.js';
 import { OrderItem } from './schemas/order-item.schema.js';
@@ -94,6 +98,9 @@ export class OrdersService {
     private readonly foodItemModel: Model<FoodItemDocument>,
     @Optional()
     private readonly ordersGateway?: OrdersGateway,
+    @Optional()
+    @InjectModel(Category.name)
+    private readonly categoryModel?: Model<CategoryDocument>,
   ) {}
 
   /**
@@ -162,6 +169,7 @@ export class OrdersService {
 
     // Step 2: Validate each item and calculate subtotal using database prices
     const orderItems: OrderItem[] = [];
+    const categoryNameCache = new Map<string, string>();
     let subtotal = 0;
 
     for (const [foodItemId, quantity] of itemQuantityMap.entries()) {
@@ -186,12 +194,70 @@ export class OrdersService {
       const itemTotal = priceSnapshot * quantity;
       subtotal += itemTotal;
 
+      let categorySnapshot:
+        | { categoryIdSnapshot: Types.ObjectId; categoryNameSnapshot: string }
+        | undefined;
+
+      if (this.categoryModel && foodItem.categoryId) {
+        const rawCat = foodItem.categoryId as unknown as
+          | Types.ObjectId
+          | { _id?: Types.ObjectId; name?: string };
+        const catId =
+          rawCat instanceof Types.ObjectId
+            ? rawCat
+            : rawCat._id
+              ? new Types.ObjectId(rawCat._id)
+              : Types.ObjectId.isValid(String(rawCat))
+                ? new Types.ObjectId(String(rawCat))
+                : undefined;
+
+        if (catId) {
+          const catKey = catId.toString();
+          let catName = categoryNameCache.get(catKey);
+          if (catName === undefined) {
+            if (typeof rawCat === 'object' && 'name' in rawCat && rawCat.name) {
+              if ('isActive' in rawCat && rawCat.isActive === false) {
+                throw new BadRequestException(
+                  `Category "${rawCat.name}" is currently unavailable`,
+                );
+              }
+              catName = rawCat.name;
+            } else {
+              let catDoc: { name?: string; isActive?: boolean } | null = null;
+              try {
+                catDoc = await this.categoryModel.findById(catId).exec();
+              } catch {
+                // Non-fatal fallback if category document lookup is mocked/omitted
+              }
+              if (catDoc?.isActive === false) {
+                throw new BadRequestException(
+                  `Category "${catDoc.name || 'selected'}" is currently unavailable`,
+                );
+              }
+              if (catDoc?.name) {
+                catName = catDoc.name;
+              }
+            }
+            if (catName) {
+              categoryNameCache.set(catKey, catName);
+            }
+          }
+          if (catName) {
+            categorySnapshot = {
+              categoryIdSnapshot: catId,
+              categoryNameSnapshot: catName,
+            };
+          }
+        }
+      }
+
       orderItems.push({
         foodItemId: foodItem._id as Types.ObjectId,
         nameSnapshot,
         priceSnapshot,
         quantity,
         itemTotal,
+        ...categorySnapshot,
       });
     }
 

@@ -3,7 +3,6 @@
 import React from 'react';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { CartItem as CartItemType } from '@/types/menu';
-import { formatCurrency } from '@/lib/api';
 import { useCart } from '@/hooks/useCart';
 
 interface CartItemProps {
@@ -13,62 +12,69 @@ interface CartItemProps {
 export function CartItem({ item }: CartItemProps) {
   const { addItem, removeItem, deleteItem } = useCart();
   const { foodItem, quantity } = item;
-  const itemTotalPaise = foodItem.price * quantity;
+  const unitPriceRupees = Math.round(foodItem.price / 100);
+  const linePriceRupees = unitPriceRupees * quantity;
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-2xs flex flex-col gap-3">
-      {/* Top row: Name, Unit Price, and Direct Delete */}
+    <div className="bg-[#EFE6DC]/40 rounded-xl p-3.5 sm:p-4 border border-[#6A0019]/15 flex flex-col gap-2.5">
+      {/* Top Row: Name, Unit Price, and Delete Button */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-stone-900 text-sm leading-snug tracking-tight">
+          <h4 className="font-display font-semibold text-sm sm:text-base text-[#6A0019] leading-snug">
             {foodItem.name}
           </h4>
-          <p className="text-xs text-stone-500 font-medium mt-0.5">
-            {formatCurrency(foodItem.price)} each
+          <p className="text-xs text-[#6A0019]/70 font-body tabular-nums mt-0.5">
+            ₹{unitPriceRupees} each
           </p>
         </div>
 
-        {/* Delete button */}
         <button
+          type="button"
           onClick={() => deleteItem(foodItem._id)}
-          aria-label={`Remove ${foodItem.name} from cart`}
-          className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors active:scale-95"
+          aria-label={`Remove ${foodItem.name} from order`}
+          className="p-2 text-[#6A0019]/50 hover:text-[#6A0019] hover:bg-[#6A0019]/10 rounded-lg transition-colors cursor-pointer"
           title="Remove item"
         >
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Bottom row: Quantity Stepper & Item Total */}
-      <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+      {/* Bottom Row: Stepper and Line Price */}
+      <div className="flex items-center justify-between pt-2 border-t border-[#6A0019]/10">
         {/* Quantity Stepper */}
-        <div className="flex items-center bg-stone-100 text-stone-900 rounded-lg border border-stone-200 p-0.5 shadow-2xs">
+        <div
+          role="group"
+          aria-label={`Adjust quantity of ${foodItem.name}`}
+          className="inline-flex items-center rounded-lg border border-[#6A0019] bg-[#FBF7F2] text-[#6A0019]"
+        >
           <button
+            type="button"
             onClick={() => removeItem(foodItem._id)}
-            aria-label="Decrease quantity"
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white text-stone-700 active:scale-90 transition-all"
+            aria-label={`Decrease quantity of ${foodItem.name}`}
+            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-[#6A0019]/10 transition-colors cursor-pointer rounded-l-md"
           >
-            <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <Minus className="w-3.5 h-3.5 stroke-[2.2]" />
           </button>
-          <span className="w-8 text-center text-xs font-bold font-mono">
+          <span className="w-7 text-center font-body text-xs sm:text-sm font-bold tabular-nums">
             {quantity}
           </span>
           <button
+            type="button"
             onClick={() => addItem(foodItem)}
-            aria-label="Increase quantity"
-            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white text-stone-700 active:scale-90 transition-all"
+            aria-label={`Increase quantity of ${foodItem.name}`}
+            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-[#6A0019]/10 transition-colors cursor-pointer rounded-r-md"
           >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <Plus className="w-3.5 h-3.5 stroke-[2.2]" />
           </button>
         </div>
 
-        {/* Item Total */}
+        {/* Line Price */}
         <div className="text-right">
-          <span className="text-[11px] text-stone-400 font-medium block">
-            Item Total
+          <span className="text-[10px] uppercase tracking-wider text-[#6A0019]/60 block font-semibold">
+            Line Total
           </span>
-          <span className="font-bold text-stone-900 text-sm tracking-tight">
-            {formatCurrency(itemTotalPaise)}
+          <span className="font-body text-sm sm:text-base font-bold text-[#6A0019] tabular-nums">
+            ₹{linePriceRupees}
           </span>
         </div>
       </div>

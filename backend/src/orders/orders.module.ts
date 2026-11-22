@@ -9,6 +9,10 @@ import {
   FoodItem,
   FoodItemSchema,
 } from '../menu/schemas/food-item.schema.js';
+import {
+  Category,
+  CategorySchema,
+} from '../menu/schemas/category.schema.js';
 import { OrdersService } from './orders.service.js';
 import { OrdersController } from './orders.controller.js';
 import { AdminOrdersController } from './admin-orders.controller.js';
@@ -21,6 +25,7 @@ import { AuthModule } from '../auth/auth.module.js';
       { name: Order.name, schema: OrderSchema },
       { name: OrderCounter.name, schema: OrderCounterSchema },
       { name: FoodItem.name, schema: FoodItemSchema },
+      { name: Category.name, schema: CategorySchema },
     ]),
     AuthModule,
   ],

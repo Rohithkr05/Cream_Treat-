@@ -159,6 +159,27 @@ describe('CategoriesService & FoodItemsService', () => {
       expect(result).toEqual([{ name: 'Veg Momos', price: 12000 }]);
     });
 
+    it('findAvailable should exclude items whose populated category is deactivated', async () => {
+      const activeItem = {
+        name: 'Veg Momos',
+        price: 12000,
+        categoryId: { name: 'Momos', displayOrder: 1, isActive: true },
+      };
+      const inactiveCatItem = {
+        name: 'Old Seasonal Item',
+        price: 9000,
+        categoryId: { name: 'Seasonal', displayOrder: 9, isActive: false },
+      };
+      const exec = vi.fn().mockResolvedValue([activeItem, inactiveCatItem]);
+      const sort = vi.fn().mockReturnValue({ exec });
+      const populate = vi.fn().mockReturnValue({ sort });
+      mockFoodItemModel.find.mockReturnValue({ populate });
+
+      const result = await foodItemsService.findAvailable();
+
+      expect(result).toEqual([activeItem]);
+    });
+
     it('findAvailable with categoryId should filter by categoryId', async () => {
       const catId = '507f1f77bcf86cd799439011';
       const exec = vi.fn().mockResolvedValue([]);

@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
+import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { adminLogin, getAdminToken } from '@/lib/api';
 
 export default function AdminLoginPage() {
@@ -50,103 +52,124 @@ export default function AdminLoginPage() {
 
   if (isCheckingAuth) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-stone-100 p-4">
+      <main className="min-h-screen flex items-center justify-center bg-[#FBF7F2] p-4 font-body">
         <div className="text-center">
-          <div className="w-8 h-8 border-3 border-stone-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-stone-600">Verifying session...</p>
+          <Loader2 className="w-7 h-7 text-[#6A0019] animate-spin mx-auto mb-3" />
+          <p className="text-xs uppercase tracking-widest text-[#2C1810]/70 font-semibold">
+            Verifying Session...
+          </p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen flex flex-col justify-center items-center bg-stone-100 px-4 py-12">
-      <div className="w-full max-w-md bg-white border border-stone-200 rounded-2xl shadow-sm p-6 sm:p-8">
+    <main className="min-h-screen flex flex-col justify-center items-center bg-[#FBF7F2] px-4 py-12 font-body selection:bg-[#6A0019] selection:text-[#EFE6DC]">
+      <div className="w-full max-w-sm bg-white border border-[#6A0019]/15 rounded-3xl shadow-xs p-6 sm:p-8">
+        {/* Brand Header */}
         <div className="text-center mb-6">
-          <span className="inline-block px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-amber-800 bg-amber-50 rounded-full border border-amber-200 mb-2">
-            Management Portal
-          </span>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">
+          <div className="relative w-14 h-14 rounded-full overflow-hidden border border-[#6A0019]/30 p-0.5 bg-[#EFE6DC] mx-auto mb-3 shadow-2xs">
+            <Image
+              src="/images/cream-treat-logo.jpg"
+              alt="Cream Treat Brand Logo"
+              fill
+              sizes="56px"
+              className="object-cover rounded-full"
+              priority
+            />
+          </div>
+
+          <h1 className="font-display text-2xl font-bold tracking-tight text-[#6A0019]">
             Cream Treat
           </h1>
-          <h2 className="text-base text-stone-500 mt-1 font-medium">
-            Admin Login
-          </h2>
+          <p className="text-xs uppercase tracking-[0.2em] font-semibold text-[#2C1810]/60 mt-1 font-body">
+            Staff Counter Portal
+          </p>
         </div>
 
+        {/* Error Alert */}
         {errorMessage && (
           <div
             role="alert"
             id="login-error"
-            className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl"
+            className="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-900 text-xs rounded-xl flex items-start gap-2"
           >
-            {errorMessage}
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{errorMessage}</span>
           </div>
         )}
 
+        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-stone-700 mb-1"
+              className="block font-display text-xs uppercase tracking-wider font-bold text-[#6A0019] mb-1.5"
             >
-              Email
+              Email Address
             </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
-              required
-              autoComplete="email"
-              autoCapitalize="none"
-              disabled={isLoading}
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:bg-white transition"
-            />
+            <div className="relative">
+              <Mail className="w-4 h-4 text-[#2C1810]/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@creamtreat.local"
+                required
+                autoComplete="email"
+                autoCapitalize="none"
+                disabled={isLoading}
+                className="w-full pl-10 pr-3.5 py-2.5 bg-[#FBF7F2] border border-[#6A0019]/20 rounded-xl text-[#2C1810] text-sm placeholder:text-[#2C1810]/40 focus:outline-none focus:ring-2 focus:ring-[#6A0019] focus:bg-white transition"
+              />
+            </div>
           </div>
 
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-stone-700 mb-1"
+              className="block font-display text-xs uppercase tracking-wider font-bold text-[#6A0019] mb-1.5"
             >
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-              disabled={isLoading}
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:bg-white transition"
-            />
+            <div className="relative">
+              <Lock className="w-4 h-4 text-[#2C1810]/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+                disabled={isLoading}
+                className="w-full pl-10 pr-3.5 py-2.5 bg-[#FBF7F2] border border-[#6A0019]/20 rounded-xl text-[#2C1810] text-sm placeholder:text-[#2C1810]/40 focus:outline-none focus:ring-2 focus:ring-[#6A0019] focus:bg-white transition"
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             id="admin-login-submit"
             disabled={isLoading}
-            className="w-full py-2.5 px-4 bg-stone-900 text-white font-medium text-sm rounded-xl hover:bg-stone-800 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 mt-2"
+            className="w-full min-h-[44px] py-2.5 px-4 bg-[#6A0019] hover:bg-[#520013] active:scale-[0.99] text-[#EFE6DC] font-display text-xs uppercase tracking-[0.18em] font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed mt-2"
           >
             {isLoading ? (
               <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Signing in...</span>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Signing In...</span>
               </>
             ) : (
-              'Login'
+              'Sign In to Counter'
             )}
           </button>
         </form>
 
-        <div className="mt-6 pt-5 border-t border-stone-100 text-center">
+        {/* Back Link */}
+        <div className="mt-6 pt-5 border-t border-[#6A0019]/10 text-center">
           <Link
             href="/order"
-            className="text-xs text-stone-500 hover:text-stone-900 underline underline-offset-4 transition"
+            className="text-xs text-[#6A0019]/70 hover:text-[#6A0019] font-medium transition"
           >
             ← Back to Customer Menu
           </Link>

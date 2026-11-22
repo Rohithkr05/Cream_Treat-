@@ -9,40 +9,67 @@ interface CategoryBarProps {
   onSelectCategory: (id: string | null) => void;
 }
 
+const CATEGORY_META: Record<string, { icon: string; tag: string }> = {
+  Sundae: { icon: '🍨', tag: 'Sweet Tooth' },
+  Milkshake: { icon: '🥤', tag: 'Madness' },
+  Mains: { icon: '🍔', tag: 'Mustly Mains' },
+  'Cheat Meal': { icon: '🍟', tag: 'Feel-Good' },
+  Sides: { icon: '🧅', tag: 'Situationship' },
+  Mojito: { icon: '🍹', tag: 'Magic' },
+};
+
 export function CategoryBar({
   categories,
   selectedCategoryId,
   onSelectCategory,
 }: CategoryBarProps) {
   return (
-    <div className="sticky top-[61px] z-20 bg-stone-50/95 backdrop-blur-md border-b border-stone-200/80 py-2.5 px-4 shadow-2xs">
+    <div className="sticky top-[61px] z-20 bg-stone-50/95 backdrop-blur-md border-b border-stone-200/80 py-2.5 px-4 shadow-xs">
       <div className="max-w-3xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
-        {/* "All" category button */}
+        {/* "All" button */}
         <button
           onClick={() => onSelectCategory(null)}
-          className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-150 ${
+          className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold transition-all duration-150 ${
             selectedCategoryId === null
-              ? 'bg-amber-600 text-white shadow-xs shadow-amber-600/30 ring-2 ring-amber-600/20'
-              : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-100 hover:text-stone-900'
+              ? 'bg-[#4A0E1A] text-white shadow-md shadow-[#4A0E1A]/20 ring-2 ring-[#D4AF37]/40'
+              : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-100 hover:text-stone-900 shadow-2xs'
           }`}
         >
-          All Items
+          <span>✨</span>
+          <span>All Menu</span>
         </button>
 
-        {/* Dynamic Category Buttons */}
+        {/* Dynamic 6 Categories from PDF */}
         {categories.map((category) => {
           const isSelected = selectedCategoryId === category._id;
+          const meta = CATEGORY_META[category.name] || {
+            icon: '🍽️',
+            tag: category.description || '',
+          };
+
           return (
             <button
               key={category._id}
               onClick={() => onSelectCategory(category._id)}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-150 ${
+              className={`shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all duration-150 ${
                 isSelected
-                  ? 'bg-amber-600 text-white shadow-xs shadow-amber-600/30 ring-2 ring-amber-600/20'
-                  : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-100 hover:text-stone-900'
+                  ? 'bg-[#4A0E1A] text-white shadow-md shadow-[#4A0E1A]/20 ring-2 ring-[#D4AF37]/40'
+                  : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-100 hover:text-stone-900 shadow-2xs'
               }`}
             >
-              {category.name}
+              <span className="text-sm">{meta.icon}</span>
+              <div className="flex flex-col text-left">
+                <span className="leading-none">{category.name}</span>
+                {meta.tag && (
+                  <span
+                    className={`text-[9px] font-medium leading-tight mt-0.5 ${
+                      isSelected ? 'text-[#F3D7A4]' : 'text-stone-400'
+                    }`}
+                  >
+                    {meta.tag}
+                  </span>
+                )}
+              </div>
             </button>
           );
         })}

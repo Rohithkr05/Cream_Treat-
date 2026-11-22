@@ -84,3 +84,6 @@ OrderSchema.index({ orderDate: 1, orderNumber: 1 }, { unique: true });
 // Index for kitchen and admin dashboard sorting by status and creation time
 OrderSchema.index({ status: 1, createdAt: -1 });
 OrderSchema.index({ tableNumber: 1, createdAt: -1 });
+
+// Index for analytics date-range queries and recent order timeline sorting
+OrderSchema.index({ createdAt: -1 });

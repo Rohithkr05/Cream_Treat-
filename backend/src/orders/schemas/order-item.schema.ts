@@ -35,6 +35,21 @@ export class OrderItem {
    */
   @Prop({ required: true, min: 0 })
   itemTotal!: number;
+
+  /**
+   * Optional immutable snapshot of the item's category at order time.
+   * Preserved on newly created orders so category renames/reassignments
+   * do not rewrite historical category sales; absent on older records.
+   */
+  @Prop({
+    type: SchemaTypes.ObjectId,
+    ref: 'Category',
+    required: false,
+  })
+  categoryIdSnapshot?: Types.ObjectId;
+
+  @Prop({ trim: true, required: false })
+  categoryNameSnapshot?: string;
 }
 
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);

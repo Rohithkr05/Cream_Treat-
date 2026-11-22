@@ -16,76 +16,220 @@ export interface SeedMenuResult {
 export const REAL_CREAM_TREAT_MENU = [
   {
     category: {
-      name: 'Momos',
-      description: 'Freshly steamed and fried delicious momos',
+      name: 'Sundae',
+      description: 'Sweet Tooth',
       displayOrder: 1,
       isActive: true,
     },
     items: [
       {
-        name: 'Veg Momos',
-        price: 6000, // ₹60 (verified from physical menu Batch 1)
-        description: 'Steamed vegetable dumplings served with spicy dipping sauce',
+        name: 'Chocolava Cake Sundae',
+        price: 16000, // ₹160
+        description: 'Warm molten chocolava cake topped with vanilla ice cream and hot fudge',
         displayOrder: 1,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/chocolava-cake-sundae.jpg',
       },
       {
-        name: 'Mushroom Momos',
-        price: 7000, // ₹70 (verified from physical menu Batch 1)
-        description: 'Savory minced mushroom dumplings served with house dip',
+        name: 'Death by Chocolate',
+        price: 24500, // ₹245
+        description: 'Decadent chocolate sundae layered with ice cream, brownie chunks, and rich chocolate fudge',
         displayOrder: 2,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/death-by-chocolate.jpg',
       },
       {
-        name: 'Paneer Momos',
-        price: 8000, // ₹80 (verified from physical menu Batch 1)
-        description: 'Cottage cheese stuffed dumplings served piping hot',
+        name: 'Brownie Sundae',
+        price: 18000, // ₹180
+        description: 'Rich chocolate brownie topped with vanilla ice cream and chocolate drizzle',
         displayOrder: 3,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/brownie-sundae.jpg',
+      },
+      {
+        name: 'Hot Chocolate Fudge',
+        price: 20000, // ₹200
+        description: 'Classic vanilla ice cream scoops drenched in warm rich chocolate fudge',
+        displayOrder: 4,
+        isAvailable: true,
+        imageUrl: '/menu/hot-chocolate-fudge.jpg',
+      },
+      {
+        name: 'Banana Split',
+        price: 19500, // ₹195
+        description: 'Fresh sliced banana with trio of ice cream scoops, nuts, syrups, and cherries',
+        displayOrder: 5,
+        isAvailable: true,
+        imageUrl: '/menu/banana-split.jpg',
+      },
+      {
+        name: 'Rose Falooda',
+        price: 22000, // ₹220
+        description: 'Fragrant rose syrup infused milk with sabja seeds, vermicelli, and ice cream',
+        displayOrder: 6,
+        isAvailable: true,
+        imageUrl: '/menu/rose-falooda.jpg',
+      },
+      {
+        name: 'Royal Falooda',
+        price: 22000, // ₹220
+        description: 'Traditional layered dessert with mixed nuts, saffron syrup, and kulfi scoop',
+        displayOrder: 7,
+        isAvailable: true,
+        imageUrl: '/menu/royal-falooda.jpg',
+      },
+      {
+        name: 'Gadbud',
+        price: 20000, // ₹200
+        description: 'Legendary Mangalore multi-layered sundae with fruits, jelly, and dry fruit ice creams',
+        displayOrder: 8,
+        isAvailable: true,
+        imageUrl: '/menu/gadbud.jpg',
+      },
+      {
+        name: 'Biscoff Sundae',
+        price: 22500, // ₹225
+        description: 'Lotus Biscoff cookie crumble and creamy spread with premium dairy ice cream',
+        displayOrder: 9,
+        isAvailable: true,
+        imageUrl: '/menu/biscoff-sundae.jpg',
       },
     ],
   },
   {
     category: {
-      name: 'Soup',
-      description: 'Hot and flavorful freshly prepared restaurant soups',
+      name: 'Milkshake',
+      description: 'Madness',
       displayOrder: 2,
       isActive: true,
     },
     items: [
       {
-        name: 'Manchow Soup',
-        price: 14000, // ₹140
-        description: 'Spicy Indo-Chinese soup topped with crispy fried noodles',
+        name: 'Hazelnut Bubble Milk',
+        price: 19000, // ₹190
+        description: 'Rich hazelnut milk tea with brown sugar chewy tapioca boba pearls',
         displayOrder: 1,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/hazelnut-bubble-milk-v2.jpg',
       },
       {
-        name: 'Mushroom Soup',
-        price: 16000, // ₹160
-        description: 'Rich and creamy soup prepared with wild mushrooms',
+        name: 'Strawberry Milkshake',
+        price: 11000, // ₹110
+        description: 'Chilled strawberry milkshake topped with whipped cream and chocolate shavings',
         displayOrder: 2,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/strawberry-milkshake-v2.jpg',
       },
       {
-        name: 'Tomato Soup',
-        price: 14000, // ₹140
-        description: 'Classic velvety roasted tomato soup with savory herbs',
+        name: 'Oreo Milkshake',
+        price: 11500, // ₹115
+        description: 'Creamy Oreo cookie shake drizzled with chocolate and whipped cream',
         displayOrder: 3,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/oreo-milkshake-v2.jpg',
+      },
+      {
+        name: 'Classic Cold Coffee',
+        price: 11000, // ₹110
+        description: 'Brewed espresso chilled with whole milk, vanilla cream, and ice cubes',
+        displayOrder: 4,
+        isAvailable: true,
+        imageUrl: '/menu/classic-cold-coffee-v2.jpg',
+      },
+      {
+        name: 'Rose Milk',
+        price: 8500, // ₹85
+        description: 'Fragrant aromatic rose milk served ice-cold',
+        displayOrder: 5,
+        isAvailable: true,
+        imageUrl: '/menu/rose-milk-v2.jpg',
+      },
+      {
+        name: 'Chocolate Milkshake',
+        price: 11000, // ₹110
+        description: 'Classic rich Dutch cocoa blended with creamy dairy ice cream',
+        displayOrder: 6,
+        isAvailable: true,
+        imageUrl: '/menu/chocolate-milkshake-v2.jpg',
+      },
+      {
+        name: 'Vanilla Milkshake',
+        price: 11000, // ₹110
+        description: 'Pure Madagascar vanilla cream shake',
+        displayOrder: 7,
+        isAvailable: true,
+        imageUrl: '/menu/vanilla-milkshake-v2.jpg',
+      },
+      {
+        name: 'Kitkat Milkshake',
+        price: 12000, // ₹120
+        description: 'Crispy wafer Kitkat chocolate bars blended thick and creamy',
+        displayOrder: 8,
+        isAvailable: true,
+        imageUrl: '/menu/kitkat-milkshake-v2.jpg',
+      },
+      {
+        name: 'Biscoff Milkshake',
+        price: 12500, // ₹125
+        description: 'Caramelized Belgian speculoos cookie butter shake',
+        displayOrder: 9,
+        isAvailable: true,
+        imageUrl: '/menu/biscoff-milkshake-v2.jpg',
+      },
+      {
+        name: 'Nutella Milkshake',
+        price: 13500, // ₹135
+        description: 'Creamy hazelnut cocoa Nutella blended with fresh dairy milk',
+        displayOrder: 10,
+        isAvailable: true,
+        imageUrl: '/menu/nutella-milkshake-v2.jpg',
+      },
+      {
+        name: 'Hazelnut Cold Coffee',
+        price: 12500, // ₹125
+        description: 'Chilled roasted hazelnut flavored espresso with cold milk',
+        displayOrder: 11,
+        isAvailable: true,
+        imageUrl: '/menu/hazelnut-cold-coffee-v2.jpg',
+      },
+      {
+        name: 'Salted Caramel Cold Coffee',
+        price: 12500, // ₹125
+        description: 'Sweet and salty buttery caramel drizzled into rich cold brew',
+        displayOrder: 12,
+        isAvailable: true,
+        imageUrl: '/menu/salted-caramel-cold-coffee-v2.jpg',
+      },
+      {
+        name: 'Chocolate Bubble Milk',
+        price: 18000, // ₹180
+        description: 'Velvety chocolate milk with chewy sweet boba pearls',
+        displayOrder: 13,
+        isAvailable: true,
+        imageUrl: '/menu/chocolate-bubble-milk-v2.jpg',
+      },
+      {
+        name: 'Coffee Bubble Milk',
+        price: 17000, // ₹170
+        description: 'Iced latte with brown sugar tapioca boba pearls',
+        displayOrder: 14,
+        isAvailable: true,
+        imageUrl: '/menu/coffee-bubble-milk-v2.jpg',
+      },
+      {
+        name: 'Berry Blast Bubble Milk',
+        price: 19000, // ₹190
+        description: 'Mixed wild berry milk tea with chewy tapioca pearls',
+        displayOrder: 15,
+        isAvailable: true,
+        imageUrl: '/menu/berry-blast-bubble-milk-v2.jpg',
       },
     ],
   },
   {
     category: {
       name: 'Mains',
-      description: 'Freshly grilled sandwiches and burgers',
+      description: 'Mustly Mains',
       displayOrder: 3,
       isActive: true,
     },
@@ -112,7 +256,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Spicy green chillies and melted cheese grilled to golden perfection',
         displayOrder: 3,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/chilli-cheese-sandwich.jpg',
       },
       {
         name: 'Corn Cheese Sandwich',
@@ -120,7 +264,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Sweet corn kernels paired with creamy melted cheese',
         displayOrder: 4,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/corn-cheese-sandwich.jpg',
       },
       {
         name: 'Pizza Sandwich',
@@ -128,7 +272,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Italian herb seasoned pizza sauce, veggies, and mozzarella grilled toast',
         displayOrder: 5,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/pizza-sandwich.jpg',
       },
       {
         name: 'Paneer Grilled Sandwich',
@@ -136,7 +280,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Spiced paneer filling grilled between buttery golden toast',
         displayOrder: 6,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/paneer-grilled-sandwich.jpg',
       },
       {
         name: 'Veg Burger',
@@ -152,7 +296,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Herbed spicy vegetable patty topped with signature sauce',
         displayOrder: 8,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/herb-chilli-burger.jpg',
       },
       {
         name: 'Paneer Burger',
@@ -160,309 +304,15 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Golden crusted cottage cheese patty with crisp lettuce and mayo',
         displayOrder: 9,
         isAvailable: true,
-        imageUrl: '',
-      },
-    ],
-  },
-  {
-    category: {
-      name: 'Sundae',
-      description: 'Specialty dessert sundaes, faloodas, and ice cream treats',
-      displayOrder: 4,
-      isActive: true,
-    },
-    items: [
-      {
-        name: 'Chocolava Cake Sundae',
-        price: 16000, // ₹160 (verified from physical menu Batch 1)
-        description: 'Warm molten chocolava cake topped with vanilla ice cream and hot fudge',
-        displayOrder: 1,
-        isAvailable: true,
-        imageUrl: '/menu/chocolava-cake-sundae.jpg',
-      },
-      {
-        name: 'Death by Chocolate',
-        price: 24500, // ₹245 (verified from physical menu Batch 1)
-        description: 'Decadent chocolate sundae layered with ice cream, brownie chunks, and rich chocolate fudge',
-        displayOrder: 2,
-        isAvailable: true,
-        imageUrl: '/menu/death-by-chocolate.jpg',
-      },
-      {
-        name: 'Brownie Sundae',
-        price: 18000, // ₹180 (verified from physical menu Batch 1)
-        description: 'Rich chocolate brownie topped with vanilla ice cream and chocolate drizzle',
-        displayOrder: 3,
-        isAvailable: true,
-        imageUrl: '/menu/brownie-sundae.jpg',
-      },
-      {
-        name: 'Hot Chocolate Fudge',
-        price: 20000, // ₹200 (verified from physical menu Batch 1)
-        description: 'Classic vanilla ice cream scoops drenched in warm rich chocolate fudge',
-        displayOrder: 4,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Banana Split',
-        price: 19500, // ₹195 (verified from physical menu Batch 1)
-        description: 'Fresh sliced banana with trio of ice cream scoops, nuts, syrups, and cherries',
-        displayOrder: 5,
-        isAvailable: true,
-        imageUrl: '/menu/banana-split.jpg',
-      },
-      {
-        name: 'Rose Falooda',
-        price: 22000, // ₹220 (verified from physical menu Batch 1)
-        description: 'Fragrant rose syrup infused milk with sabja seeds, vermicelli, and ice cream',
-        displayOrder: 6,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Royal Falooda',
-        price: 22000, // ₹220 (verified from physical menu Batch 1)
-        description: 'Traditional layered dessert with mixed nuts, saffron syrup, and kulfi scoop',
-        displayOrder: 7,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Gadbud',
-        price: 20000, // ₹200 (verified from physical menu Batch 1)
-        description: 'Legendary Mangalore multi-layered sundae with fruits, jelly, and dry fruit ice creams',
-        displayOrder: 8,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Biscoff Sundae',
-        price: 22500, // ₹225 (verified from physical menu Batch 1)
-        description: 'Lotus Biscoff cookie crumble and creamy spread with premium dairy ice cream',
-        displayOrder: 9,
-        isAvailable: true,
-        imageUrl: '',
-      },
-    ],
-  },
-  {
-    category: {
-      name: 'Mojito / Lassi',
-      description: 'Refreshing chilled mojitos and traditional lassis',
-      displayOrder: 5,
-      isActive: true,
-    },
-    items: [
-      {
-        name: 'Mint Mojito',
-        price: 10000, // ₹100
-        description: 'Fresh mint leaves and muddled lime topped with chilled sparkling soda',
-        displayOrder: 1,
-        isAvailable: true,
-        imageUrl: '/menu/mint-mojito.jpg',
-      },
-      {
-        name: 'Blue Lime Mojito',
-        price: 10000, // ₹100
-        description: 'Electric blue citrus cooler with mint, lime, and crushed ice',
-        displayOrder: 2,
-        isAvailable: true,
-        imageUrl: '/menu/blue-lime-mojito.jpg',
-      },
-      {
-        name: 'Passionfruit Mojito',
-        price: 11000, // ₹110
-        description: 'Tropical passionfruit blend with fresh lime, mint, and soda',
-        displayOrder: 3,
-        isAvailable: true,
-        imageUrl: '/menu/passionfruit-mojito.jpg',
-      },
-      {
-        name: 'Green Apple Mojito',
-        price: 11000, // ₹110
-        description: 'Crisp tart green apple syrup infused with mint and crushed ice',
-        displayOrder: 4,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Cranberry Mojito',
-        price: 11000, // ₹110
-        description: 'Tangy cranberry splash with mint and sparkling soda',
-        displayOrder: 5,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Sweet Lassi',
-        price: 7000, // ₹70
-        description: 'Traditional churned creamy sweet yogurt drink',
-        displayOrder: 6,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Mango Lassi',
-        price: 8500, // ₹85
-        description: 'Rich mango pulp blended with fresh chilled yogurt',
-        displayOrder: 7,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Strawberry Lassi',
-        price: 8500, // ₹85
-        description: 'Sweet strawberry fruit blend with smooth thick yogurt',
-        displayOrder: 8,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Rose Lassi',
-        price: 8500, // ₹85
-        description: 'Delicate rose petal syrup infused with velvety churned yogurt',
-        displayOrder: 9,
-        isAvailable: true,
-        imageUrl: '',
-      },
-    ],
-  },
-  {
-    category: {
-      name: 'Milkshakes & Cold Coffee',
-      description: 'Creamy blended milkshakes, boba bubble milk, and chilled coffees',
-      displayOrder: 6,
-      isActive: true,
-    },
-    items: [
-      {
-        name: 'Hazelnut Bubble Milk',
-        price: 19000, // ₹190
-        description: 'Rich hazelnut milk tea with brown sugar chewy tapioca boba pearls',
-        displayOrder: 1,
-        isAvailable: true,
-        imageUrl: '/menu/hazelnut-bubble-milk.jpg',
-      },
-      {
-        name: 'Strawberry Milkshake',
-        price: 11000, // ₹110
-        description: 'Chilled strawberry milkshake topped with whipped cream and chocolate shavings',
-        displayOrder: 2,
-        isAvailable: true,
-        imageUrl: '/menu/strawberry-milkshake.jpg',
-      },
-      {
-        name: 'Oreo Milkshake',
-        price: 11500, // ₹115
-        description: 'Creamy Oreo cookie shake drizzled with chocolate and whipped cream',
-        displayOrder: 3,
-        isAvailable: true,
-        imageUrl: '/menu/oreo-milkshake.jpg',
-      },
-      {
-        name: 'Classic Cold Coffee',
-        price: 11000, // ₹110
-        description: 'Brewed espresso chilled with whole milk, vanilla cream, and ice cubes',
-        displayOrder: 4,
-        isAvailable: true,
-        imageUrl: '/menu/classic-cold-coffee.jpg',
-      },
-      {
-        name: 'Rose Milk',
-        price: 8500, // ₹85
-        description: 'Fragrant aromatic rose milk served ice-cold',
-        displayOrder: 5,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Chocolate Milkshake',
-        price: 11000, // ₹110
-        description: 'Classic rich Dutch cocoa blended with creamy dairy ice cream',
-        displayOrder: 6,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Vanilla Milkshake',
-        price: 11000, // ₹110
-        description: 'Pure Madagascar vanilla cream shake',
-        displayOrder: 7,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Kitkat Milkshake',
-        price: 12000, // ₹120
-        description: 'Crispy wafer Kitkat chocolate bars blended thick and creamy',
-        displayOrder: 8,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Biscoff Milkshake',
-        price: 12500, // ₹125
-        description: 'Caramelized Belgian speculoos cookie butter shake',
-        displayOrder: 9,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Nutella Milkshake',
-        price: 13500, // ₹135
-        description: 'Creamy hazelnut cocoa Nutella blended with fresh dairy milk',
-        displayOrder: 10,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Hazelnut Cold Coffee',
-        price: 12500, // ₹125
-        description: 'Chilled roasted hazelnut flavored espresso with cold milk',
-        displayOrder: 11,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Salted Caramel Cold Coffee',
-        price: 12500, // ₹125
-        description: 'Sweet and salty buttery caramel drizzled into rich cold brew',
-        displayOrder: 12,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Chocolate Bubble Milk',
-        price: 18000, // ₹180
-        description: 'Velvety chocolate milk with chewy sweet boba pearls',
-        displayOrder: 13,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Coffee Bubble Milk',
-        price: 17000, // ₹170
-        description: 'Iced latte with brown sugar tapioca boba pearls',
-        displayOrder: 14,
-        isAvailable: true,
-        imageUrl: '',
-      },
-      {
-        name: 'Berry Blast Bubble Milk',
-        price: 19000, // ₹190
-        description: 'Mixed wild berry milk tea with chewy tapioca pearls',
-        displayOrder: 15,
-        isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/paneer-burger.jpg',
       },
     ],
   },
   {
     category: {
       name: 'Cheat Meal',
-      description: 'Indulgent hot maggis, crispy classic and loaded cheesy french fries',
-      displayOrder: 7,
+      description: 'Feel-Good',
+      displayOrder: 4,
       isActive: true,
     },
     items: [
@@ -504,7 +354,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Authentic street-style seasoned vegetable spice noodles',
         displayOrder: 5,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/masala-maggi.jpg',
       },
       {
         name: 'Chilli Oil Maggie',
@@ -512,7 +362,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Fiery roasted garlic chilli oil drizzled over steaming noodles',
         displayOrder: 6,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/chilli-oil-maggi.jpg',
       },
       {
         name: 'Veg Maggie',
@@ -520,7 +370,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Fresh crunchy vegetables cooked with aromatic noodle spices',
         displayOrder: 7,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/veg-maggi.jpg',
       },
       {
         name: 'Lemon Coriander Maggie',
@@ -528,7 +378,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Zesty fresh lemon and fragrant chopped coriander noodles',
         displayOrder: 8,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/lemon-coriander-maggi.jpg',
       },
       {
         name: 'Peri Peri French Fries',
@@ -536,15 +386,15 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Crisp potato fries dusted with zesty African bird eye peri peri spice',
         displayOrder: 9,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/peri-peri-french-fries.jpg',
       },
     ],
   },
   {
     category: {
       name: 'Sides',
-      description: 'Crispy golden appetizers, potato bites, and savory finger foods',
-      displayOrder: 8,
+      description: 'Situationship',
+      displayOrder: 5,
       isActive: true,
     },
     items: [
@@ -586,7 +436,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Cheesy bites loaded with diced spicy pickled jalapeno peppers',
         displayOrder: 5,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/cheese-jalapeno-bites.jpg',
       },
       {
         name: 'Lebanese Falafels Bites',
@@ -594,7 +444,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Traditional herbed chickpea patties served with tahini sauce',
         displayOrder: 6,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/lebanese-falafels-bites.jpg',
       },
       {
         name: 'Veg Fingers',
@@ -602,7 +452,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Breaded crunchy vegetable fingers served with garlic dip',
         displayOrder: 7,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/veg-fingers.jpg',
       },
       {
         name: 'Veg Nuggets',
@@ -610,7 +460,89 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Golden fried crispy vegetarian nuggets',
         displayOrder: 8,
         isAvailable: true,
-        imageUrl: '',
+        imageUrl: '/menu/veg-nuggets.jpg',
+      },
+    ],
+  },
+  {
+    category: {
+      name: 'Mojito',
+      description: 'Magic',
+      displayOrder: 6,
+      isActive: true,
+    },
+    items: [
+      {
+        name: 'Mint Mojito',
+        price: 10000, // ₹100
+        description: 'Fresh mint leaves and muddled lime topped with chilled sparkling soda',
+        displayOrder: 1,
+        isAvailable: true,
+        imageUrl: '/menu/mint-mojito-v2.jpg',
+      },
+      {
+        name: 'Blue Lime Mojito',
+        price: 10000, // ₹100
+        description: 'Electric blue citrus cooler with mint, lime, and crushed ice',
+        displayOrder: 2,
+        isAvailable: true,
+        imageUrl: '/menu/blue-lime-mojito-v2.jpg',
+      },
+      {
+        name: 'Passionfruit Mojito',
+        price: 11000, // ₹110
+        description: 'Tropical passionfruit blend with fresh lime, mint, and soda',
+        displayOrder: 3,
+        isAvailable: true,
+        imageUrl: '/menu/passionfruit-mojito-v2.jpg',
+      },
+      {
+        name: 'Green Apple Mojito',
+        price: 11000, // ₹110
+        description: 'Crisp tart green apple syrup infused with mint and crushed ice',
+        displayOrder: 4,
+        isAvailable: true,
+        imageUrl: '/menu/green-apple-mojito-v2.jpg',
+      },
+      {
+        name: 'Cranberry Mojito',
+        price: 11000, // ₹110
+        description: 'Tangy cranberry splash with mint and sparkling soda',
+        displayOrder: 5,
+        isAvailable: true,
+        imageUrl: '/menu/cranberry-mojito-v2.jpg',
+      },
+      {
+        name: 'Sweet Lassi',
+        price: 7000, // ₹70
+        description: 'Traditional churned creamy sweet yogurt drink',
+        displayOrder: 6,
+        isAvailable: true,
+        imageUrl: '/menu/sweet-lassi-v2.jpg',
+      },
+      {
+        name: 'Mango Lassi',
+        price: 8500, // ₹85
+        description: 'Rich mango pulp blended with fresh chilled yogurt',
+        displayOrder: 7,
+        isAvailable: true,
+        imageUrl: '/menu/mango-lassi-v2.jpg',
+      },
+      {
+        name: 'Strawberry Lassi',
+        price: 8500, // ₹85
+        description: 'Sweet strawberry fruit blend with smooth thick yogurt',
+        displayOrder: 8,
+        isAvailable: true,
+        imageUrl: '/menu/strawberry-lassi-v2.jpg',
+      },
+      {
+        name: 'Rose Lassi',
+        price: 8500, // ₹85
+        description: 'Delicate rose petal syrup infused with velvety churned yogurt',
+        displayOrder: 9,
+        isAvailable: true,
+        imageUrl: '/menu/rose-lassi-v2.jpg',
       },
     ],
   },
@@ -619,7 +551,6 @@ export const REAL_CREAM_TREAT_MENU = [
 export async function runMenuSeed(
   customDatabaseUrl?: string,
 ): Promise<SeedMenuResult> {
-  // Load local .env file if available
   try {
     if (typeof process.loadEnvFile === 'function') {
       try {
@@ -653,6 +584,16 @@ export async function runMenuSeed(
     const CategoryModel = connection.model('Category', CategorySchema);
     const FoodItemModel = connection.model('FoodItem', FoodItemSchema);
 
+    // Clean up any legacy categories not in the official 6-page PDF menu
+    const activeCategoryNames = REAL_CREAM_TREAT_MENU.map((c) => c.category.name);
+    const oldCategories = await CategoryModel.find({ name: { $nin: activeCategoryNames } });
+    if (oldCategories.length > 0) {
+      const oldIds = oldCategories.map((c) => c._id);
+      await FoodItemModel.deleteMany({ categoryId: { $in: oldIds } });
+      await CategoryModel.deleteMany({ _id: { $in: oldIds } });
+      console.log(`[Menu Seed] Removed ${oldCategories.length} legacy non-menu categories.`);
+    }
+
     let categoriesUpserted = 0;
     let itemsUpserted = 0;
 
@@ -667,7 +608,7 @@ export async function runMenuSeed(
             isActive: group.category.isActive,
           },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       );
 
       categoriesUpserted++;
@@ -679,7 +620,10 @@ export async function runMenuSeed(
       for (const item of group.items) {
         const escapedName = item.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         await FoodItemModel.findOneAndUpdate(
-          { name: { $regex: new RegExp(`^${escapedName}$`, 'i') } },
+          {
+            categoryId: categoryDoc._id,
+            name: { $regex: new RegExp(`^${escapedName}$`, 'i') },
+          },
           {
             $set: {
               categoryId: categoryDoc._id,
@@ -691,17 +635,14 @@ export async function runMenuSeed(
               imageUrl: item.imageUrl || '',
             },
           },
-          { upsert: true, new: true, setDefaultsOnInsert: true },
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
         );
         itemsUpserted++;
-        console.log(
-          `  - [Item] "${item.name}" — ₹${(item.price / 100).toFixed(0)} (${item.price} paise)${item.imageUrl ? ` [Image: ${item.imageUrl}]` : ''}`,
-        );
       }
     }
 
     console.log(
-      `[Menu Seed] Successfully seeded ${categoriesUpserted} categories and ${itemsUpserted} food items.`,
+      `[Menu Seed] Successfully seeded ${categoriesUpserted} categories and ${itemsUpserted} food items from PDF.`,
     );
 
     return {
@@ -715,7 +656,6 @@ export async function runMenuSeed(
   }
 }
 
-// Execute directly if run as main script
 const isMainModule =
   process.argv[1] &&
   (process.argv[1].endsWith('seed-menu.js') ||
@@ -727,7 +667,7 @@ if (isMainModule) {
       console.log('[Menu Seed] Real menu seeding completed successfully.');
       process.exit(0);
     })
-    .catch((error: Error) => {
+    .catch((error) => {
       console.error(
         `[Menu Seed] Seeding failed: ${error.message || 'Unknown database error'}`,
       );

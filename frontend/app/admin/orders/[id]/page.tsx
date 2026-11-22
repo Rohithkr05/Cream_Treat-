@@ -3,13 +3,21 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Check, ReceiptText, Printer, Download, Eye, FilePlus, ChefHat, CheckCircle2 } from 'lucide-react';
+import { AdminLayout } from '@/components/AdminLayout';
 import {
   adminGetProfile,
   fetchAdminOrderById,
   formatCurrency,
   getAdminToken,
   updateAdminOrderStatus,
+  Invoice,
+  fetchAdminInvoiceByOrderId,
+  downloadAdminInvoicePdf,
 } from '@/lib/api';
+import { InvoiceModal } from '@/components/InvoiceModal';
+import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
+import { GstSettingsModal } from '@/components/GstSettingsModal';
 import {
   createOrderSocket,
   OrderStatusUpdatedSocketEvent,
@@ -22,44 +30,44 @@ function getStatusBadge(status: OrderStatus) {
     case 'NEW':
       return {
         label: 'New Order',
-        className: 'bg-amber-50 text-amber-800 border-amber-200',
-        dot: 'bg-amber-500',
+        className: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]',
+        dot: 'bg-[#D97706]',
       };
     case 'ACCEPTED':
       return {
         label: 'Accepted',
-        className: 'bg-blue-50 text-blue-800 border-blue-200',
-        dot: 'bg-blue-500',
+        className: 'bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]',
+        dot: 'bg-[#2563EB]',
       };
     case 'PREPARING':
       return {
         label: 'Preparing',
-        className: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-        dot: 'bg-indigo-500',
+        className: 'bg-[#EDE9FE] text-[#5B21B6] border-[#DDD6FE]',
+        dot: 'bg-[#7C3AED]',
       };
     case 'READY':
       return {
-        label: 'Ready for Pickup / Table',
-        className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-        dot: 'bg-emerald-500',
+        label: 'Ready for Table',
+        className: 'bg-[#D1FAE5] text-[#065F46] border-[#A7F3D0]',
+        dot: 'bg-[#059669]',
       };
     case 'COMPLETED':
       return {
         label: 'Completed',
-        className: 'bg-stone-100 text-stone-700 border-stone-200',
-        dot: 'bg-stone-400',
+        className: 'bg-[#F5F5F4] text-[#57534E] border-[#E7E5E4]',
+        dot: 'bg-[#78716C]',
       };
     case 'CANCELLED':
       return {
         label: 'Cancelled',
-        className: 'bg-red-50 text-red-800 border-red-200',
-        dot: 'bg-red-500',
+        className: 'bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]',
+        dot: 'bg-[#DC2626]',
       };
     default:
       return {
         label: status,
-        className: 'bg-stone-100 text-stone-700 border-stone-200',
-        dot: 'bg-stone-400',
+        className: 'bg-[#F5F5F4] text-[#57534E] border-[#E7E5E4]',
+        dot: 'bg-[#78716C]',
       };
   }
 }
@@ -82,16 +90,22 @@ function formatOrderDateTime(isoString?: string) {
 
 function AdminOrderDetailSkeleton() {
   return (
-    <main className="min-h-screen bg-stone-100 p-4 sm:p-6 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-white border border-stone-200 rounded-2xl p-6 sm:p-8 space-y-4 animate-pulse">
-        <div className="w-24 h-4 bg-stone-200 rounded" />
-        <div className="w-48 h-7 bg-stone-200 rounded" />
-        <div className="space-y-3 pt-4 border-t border-stone-100">
-          <div className="w-full h-12 bg-stone-100 rounded-xl" />
-          <div className="w-full h-12 bg-stone-100 rounded-xl" />
+    <AdminLayout
+      activeNav="orders"
+      title="Order Details"
+      subtitle="Loading order ticket..."
+    >
+      <div className="max-w-3xl space-y-6">
+        <div className="bg-white border border-[#E8DFD8] rounded-2xl p-6 sm:p-8 space-y-4 animate-pulse">
+          <div className="w-24 h-4 bg-[#E8DFD8] rounded" />
+          <div className="w-48 h-7 bg-[#E8DFD8] rounded" />
+          <div className="space-y-3 pt-4 border-t border-[#E8DFD8]">
+            <div className="w-full h-12 bg-[#FBF7F2] rounded-xl" />
+            <div className="w-full h-12 bg-[#FBF7F2] rounded-xl" />
+          </div>
         </div>
       </div>
-    </main>
+    </AdminLayout>
   );
 }
 
@@ -127,6 +141,13 @@ function AdminOrderDetailContent() {
     isDestructive: false,
   });
 
+  // Invoice management states
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [previewDraft, setPreviewDraft] = useState<any>(null);
+
   const loadOrder = async (isSilent = false) => {
     const token = getAdminToken();
     if (!token) {
@@ -153,6 +174,14 @@ function AdminOrderDetailContent() {
       const data = await fetchAdminOrderById(orderId, token);
       setOrder(data);
       setErrorMessage(null);
+
+      // Load associated invoice if already generated
+      try {
+        const inv = await fetchAdminInvoiceByOrderId(orderId, token);
+        setInvoice(inv);
+      } catch {
+        // Non-blocking
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.message === 'Unauthorized') {
@@ -320,94 +349,91 @@ function AdminOrderDetailContent() {
 
   if (errorMessage || !order) {
     return (
-      <main className="min-h-screen bg-stone-100 p-4 sm:p-6 flex items-center justify-center">
-        <div className="w-full max-w-md bg-white border border-stone-200 rounded-2xl p-6 sm:p-8 text-center shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-3 text-lg font-bold">
+      <AdminLayout
+        activeNav="orders"
+        title="Order Details"
+        subtitle="Receipt lookup error"
+      >
+        <div className="max-w-md mx-auto bg-white border border-[#E8DFD8] rounded-2xl p-6 sm:p-8 text-center shadow-xs">
+          <div className="w-12 h-12 rounded-full bg-[#FEE2E2] text-[#991B1B] flex items-center justify-center mx-auto mb-3 text-lg font-bold">
             !
           </div>
-          <h2 className="text-lg font-bold text-stone-900 mb-1">
+          <h2 className="text-lg font-bold text-[#2C1810] mb-1 font-['Syne',sans-serif]">
             Unable to Load Order
           </h2>
-          <p className="text-xs sm:text-sm text-stone-500 mb-5">
+          <p className="text-xs sm:text-sm text-[#735A4C] mb-5">
             {errorMessage || 'Order could not be found.'}
           </p>
           <div className="flex gap-2 justify-center">
             <Link
               href="/admin"
-              className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-xl transition"
+              className="px-4 py-2.5 bg-[#EFE6DC] hover:bg-[#E2D5C7] text-[#2C1810] text-xs font-semibold rounded-xl transition"
             >
-              ← Back to Orders
+              ← Back to Live Orders
             </Link>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl transition"
+              className="px-4 py-2.5 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-semibold rounded-xl transition"
             >
               Retry
             </button>
           </div>
         </div>
-      </main>
+      </AdminLayout>
     );
   }
 
   const badge = getStatusBadge(order.status);
   const isTerminal = order.status === 'COMPLETED' || order.status === 'CANCELLED';
 
-  return (
-    <div className="min-h-screen bg-stone-100 text-stone-900">
-      {/* Top Header */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-20 shadow-xs">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link
-            href="/admin"
-            className="text-xs font-semibold text-stone-600 hover:text-stone-900 flex items-center gap-1.5 transition"
-          >
-            <span>←</span> Back to Orders
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-medium text-stone-500">
-              Table {order.tableNumber}
-            </span>
-            <span className="font-mono text-sm font-bold text-stone-900">
-              {order.orderNumber}
-            </span>
-          </div>
-        </div>
-      </header>
+  const backAction = (
+    <Link
+      href="/admin"
+      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#E8DFD8] bg-white hover:bg-[#FBF7F2] text-[#6A0019] text-xs font-semibold transition"
+    >
+      <span>←</span> Back to Live Orders
+    </Link>
+  );
 
-      {/* Main Order Workspace */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+  return (
+    <AdminLayout
+      activeNav="orders"
+      title={`Order ${order.orderNumber}`}
+      subtitle={`Table ${order.tableNumber} · Placed ${formatOrderDateTime(order.createdAt)}`}
+      headerActions={backAction}
+    >
+      <div className="max-w-3xl space-y-6">
         {/* Status Action Banner / Feedback */}
         {feedbackMessage && (
           <div
             role="alert"
-            className={`p-4 rounded-xl text-xs sm:text-sm font-medium border flex items-center justify-between ${
+            className={`p-4 rounded-xl text-xs sm:text-sm font-medium border flex items-center justify-between transition-all ${
               feedbackMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                : 'bg-amber-50 text-amber-900 border-amber-200'
+                ? 'bg-[#D1FAE5] text-[#065F46] border-[#A7F3D0]'
+                : 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]'
             }`}
           >
             <span>{feedbackMessage.text}</span>
             <button
               type="button"
               onClick={() => setFeedbackMessage(null)}
-              className="text-stone-400 hover:text-stone-700 text-sm ml-2"
+              className="text-[#735A4C] hover:text-[#2C1810] text-sm ml-2 font-bold"
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* ORDER STATUS MANAGEMENT CARD (Phase 11 Core) */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 sm:p-8 shadow-xs">
-          <div className="flex items-center justify-between mb-4 border-b border-stone-100 pb-3">
+        {/* ORDER STATUS MANAGEMENT CARD */}
+        <div className="bg-white border border-[#E8DFD8] rounded-2xl p-6 sm:p-7 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-[#E8DFD8]/60 pb-4">
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">
-                Fulfillment Controls
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#735A4C] block">
+                Counter Fulfillment
               </span>
-              <h2 className="text-lg font-bold text-stone-900 mt-0.5">
-                Order Lifecycle
+              <h2 className="text-base font-bold text-[#2C1810] mt-0.5 font-['Syne',sans-serif]">
+                Order Status Controls
               </h2>
             </div>
             <span
@@ -427,15 +453,18 @@ function AdminOrderDetailContent() {
                   id="action-accept-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('ACCEPTED')}
-                  className="flex-1 py-3 px-4 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isUpdating && updatingTarget === 'ACCEPTED' ? (
                     <>
-                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
                       <span>Accepting...</span>
                     </>
                   ) : (
-                    'Accept Order'
+                    <>
+                      <Check className="w-4 h-4 stroke-[2.5]" />
+                      <span>Accept Order</span>
+                    </>
                   )}
                 </button>
                 <button
@@ -443,7 +472,7 @@ function AdminOrderDetailContent() {
                   id="action-cancel-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('CANCELLED')}
-                  className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200 transition disabled:opacity-60"
+                  className="py-3 px-4 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2] text-[#991B1B] text-xs font-bold rounded-xl border border-[#FECACA] transition disabled:opacity-60 cursor-pointer"
                 >
                   Cancel Order
                 </button>
@@ -454,18 +483,21 @@ function AdminOrderDetailContent() {
               <>
                 <button
                   type="button"
-                  id="action-start-preparing"
+                  id="action-prepare-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('PREPARING')}
-                  className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 bg-[#4E447A] hover:bg-[#3C3361] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isUpdating && updatingTarget === 'PREPARING' ? (
                     <>
-                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Starting preparation...</span>
+                      <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                      <span>Sending to Kitchen...</span>
                     </>
                   ) : (
-                    'Start Preparing'
+                    <>
+                      <ChefHat className="w-4 h-4" />
+                      <span>Send to Kitchen (Start Preparing)</span>
+                    </>
                   )}
                 </button>
                 <button
@@ -473,7 +505,7 @@ function AdminOrderDetailContent() {
                   id="action-cancel-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('CANCELLED')}
-                  className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200 transition disabled:opacity-60"
+                  className="py-3 px-4 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2] text-[#991B1B] text-xs font-bold rounded-xl border border-[#FECACA] transition disabled:opacity-60 cursor-pointer"
                 >
                   Cancel Order
                 </button>
@@ -484,18 +516,21 @@ function AdminOrderDetailContent() {
               <>
                 <button
                   type="button"
-                  id="action-mark-ready"
+                  id="action-ready-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('READY')}
-                  className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 bg-[#2B6633] hover:bg-[#1E4D25] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isUpdating && updatingTarget === 'READY' ? (
                     <>
-                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Marking ready...</span>
+                      <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                      <span>Marking Ready...</span>
                     </>
                   ) : (
-                    'Mark Ready'
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Mark Ready for Table</span>
+                    </>
                   )}
                 </button>
                 <button
@@ -503,7 +538,7 @@ function AdminOrderDetailContent() {
                   id="action-cancel-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('CANCELLED')}
-                  className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200 transition disabled:opacity-60"
+                  className="py-3 px-4 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2] text-[#991B1B] text-xs font-bold rounded-xl border border-[#FECACA] transition disabled:opacity-60 cursor-pointer"
                 >
                   Cancel Order
                 </button>
@@ -511,63 +546,78 @@ function AdminOrderDetailContent() {
             )}
 
             {order.status === 'READY' && (
-              <button
-                type="button"
-                id="action-complete-order"
-                disabled={isUpdating}
-                onClick={() => handleActionClick('COMPLETED')}
-                className="flex-1 py-3 px-4 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {isUpdating && updatingTarget === 'COMPLETED' ? (
-                  <>
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Completing...</span>
-                  </>
-                ) : (
-                  'Complete Order'
-                )}
-              </button>
+              <>
+                <button
+                  type="button"
+                  id="action-complete-order"
+                  disabled={isUpdating}
+                  onClick={() => handleActionClick('COMPLETED')}
+                  className="flex-1 py-3 px-4 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isUpdating && updatingTarget === 'COMPLETED' ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                      <span>Completing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 stroke-[2.5]" />
+                      <span>Complete Order</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  id="action-cancel-order"
+                  disabled={isUpdating}
+                  onClick={() => handleActionClick('CANCELLED')}
+                  className="py-3 px-4 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2] text-[#991B1B] text-xs font-bold rounded-xl border border-[#FECACA] transition disabled:opacity-60 cursor-pointer"
+                >
+                  Cancel Order
+                </button>
+              </>
             )}
 
             {order.status === 'COMPLETED' && (
-              <div className="w-full p-3.5 bg-stone-50 border border-stone-200 rounded-xl text-center text-xs text-stone-600 font-medium">
-                No further actions available. This order has been successfully fulfilled.
+              <div className="w-full p-3.5 bg-[#EFE6DC]/50 border border-[#6A0019]/20 rounded-xl text-center text-xs text-[#6A0019] font-bold flex items-center justify-center gap-2">
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                <span>Order Completed & Served.</span>
               </div>
             )}
 
             {order.status === 'CANCELLED' && (
-              <div className="w-full p-3.5 bg-red-50 border border-red-200 rounded-xl text-center text-xs text-red-700 font-medium">
+              <div className="w-full p-3.5 bg-[#FEE2E2]/60 border border-[#FECACA] rounded-xl text-center text-xs text-[#991B1B] font-medium">
                 Order cancelled. No further actions available.
               </div>
             )}
           </div>
 
           {!isTerminal && (
-            <p className="text-[11px] text-stone-400 mt-3 text-center sm:text-left">
-              Fulfillment actions immediately update the customer live tracking screen via automatic polling.
+            <p className="text-[11px] text-[#A8988C] mt-3">
+              Status changes immediately sync to the customer table view and live kitchen screen.
             </p>
           )}
         </div>
 
         {/* ORDER SUMMARY & DETAILS CARD */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 sm:p-8 shadow-xs">
+        <div className="bg-white border border-[#E8DFD8] rounded-2xl p-6 sm:p-7 shadow-xs">
           {/* Order Header Summary */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E8DFD8]">
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold tracking-tight text-stone-900 font-mono">
-                  Order {order.orderNumber}
-                </h1>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-stone-900 text-white">
-                  Table {order.tableNumber}
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs font-extrabold px-3 py-1 rounded-lg bg-[#6A0019] text-[#EFE6DC] tracking-wider uppercase">
+                  TABLE {order.tableNumber}
+                </span>
+                <span className="text-sm font-bold text-[#735A4C] font-mono">
+                  #{order.orderNumber}
                 </span>
               </div>
-              <p className="text-xs text-stone-500 mt-1">
+              <p className="text-xs text-[#735A4C] mt-2">
                 Placed on {formatOrderDateTime(order.createdAt)} • Service Date:{' '}
                 <span className="font-mono">{order.orderDate}</span>
               </p>
               {order.updatedAt && order.updatedAt !== order.createdAt && (
-                <p className="text-[11px] text-stone-400 mt-0.5">
+                <p className="text-[11px] text-[#A8988C] mt-0.5">
                   Last updated: {formatOrderDateTime(order.updatedAt)}
                 </p>
               )}
@@ -575,24 +625,24 @@ function AdminOrderDetailContent() {
           </div>
 
           {/* Items Breakdown */}
-          <div className="py-6 border-b border-stone-100">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">
+          <div className="py-5 border-b border-[#E8DFD8]">
+            <h2 className="text-[11px] font-bold uppercase tracking-wider text-[#735A4C] mb-3">
               Ordered Items ({order.items.reduce((s, it) => s + it.quantity, 0)})
             </h2>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {order.items.map((item, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3.5 bg-stone-50 rounded-xl border border-stone-100 text-xs sm:text-sm"
+                  className="flex items-center justify-between p-3.5 bg-[#FBF7F2] rounded-xl border border-[#E8DFD8]/60 text-xs sm:text-sm"
                 >
                   <div className="pr-4">
-                    <p className="font-semibold text-stone-900">{item.name}</p>
-                    <p className="text-xs text-stone-500 font-mono mt-0.5">
+                    <p className="font-semibold text-[#2C1810]">{item.name}</p>
+                    <p className="text-xs text-[#735A4C] font-mono mt-0.5 tabular-nums">
                       {item.quantity} × {formatCurrency(item.unitPrice)}
                     </p>
                   </div>
-                  <div className="font-mono font-bold text-stone-900 text-sm">
+                  <div className="font-mono font-bold text-[#6A0019] text-sm tabular-nums">
                     {formatCurrency(item.itemTotal)}
                   </div>
                 </div>
@@ -601,35 +651,199 @@ function AdminOrderDetailContent() {
           </div>
 
           {/* Pricing Summary */}
-          <div className="pt-6 space-y-2 text-xs sm:text-sm">
-            <div className="flex justify-between text-stone-600">
+          <div className="pt-5 space-y-2 text-xs sm:text-sm">
+            <div className="flex justify-between text-[#735A4C]">
               <span>Subtotal</span>
-              <span className="font-mono font-medium">
+              <span className="font-mono font-medium tabular-nums">
                 {formatCurrency(order.subtotal)}
               </span>
             </div>
-            <div className="flex justify-between text-base font-bold text-stone-900 pt-2 border-t border-stone-100">
+            <div className="flex justify-between text-base font-bold text-[#2C1810] pt-3 border-t border-[#E8DFD8]">
               <span>Total Bill</span>
-              <span className="font-mono text-lg font-extrabold text-stone-900">
+              <span className="font-mono text-lg font-extrabold text-[#6A0019] tabular-nums">
                 {formatCurrency(order.total)}
               </span>
             </div>
           </div>
         </div>
-      </main>
 
-      {/* CONFIRMATION DIALOG MODAL (Part 13) */}
+        {/* GST TAX INVOICE CARD */}
+        <div className="bg-white border border-[#E8DFD8] rounded-2xl p-6 sm:p-7 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8DFD8]">
+            <div className="flex items-center gap-2.5">
+              <ReceiptText className="w-5 h-5 text-[#6A0019]" />
+              <div>
+                <h3 className="font-display font-bold text-sm tracking-wide uppercase text-[#6A0019]">
+                  GST Tax Invoice
+                </h3>
+                <p className="text-[11px] text-[#735A4C]">
+                  Itemized tax invoice with HSN/SAC, CGST &amp; SGST calculations
+                </p>
+              </div>
+            </div>
+
+            {invoice ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  {invoice.invoiceNumber}
+                </span>
+              </div>
+            ) : (
+              <span className="text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-semibold self-start sm:self-auto">
+                Not Invoiced Yet
+              </span>
+            )}
+          </div>
+
+          <div className="pt-4">
+            {invoice ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 bg-[#FBF7F2] rounded-xl border border-[#E8DFD8]/60 text-xs">
+                  <div>
+                    <span className="text-[#735A4C] block text-[10px] uppercase font-semibold">Taxable Amount</span>
+                    <span className="font-mono font-bold text-[#2C1810]">{formatCurrency(invoice.taxableAmount)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#735A4C] block text-[10px] uppercase font-semibold">Total GST</span>
+                    <span className="font-mono font-bold text-[#6A0019]">{formatCurrency(invoice.totalGst)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#735A4C] block text-[10px] uppercase font-semibold">Grand Total</span>
+                    <span className="font-mono font-bold text-[#2C1810]">{formatCurrency(invoice.grandTotal)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#735A4C] block text-[10px] uppercase font-semibold">Payment</span>
+                    <span className="font-semibold text-[#2C1810]">{invoice.paymentMode} ({invoice.paymentStatus})</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    id="btn-preview-invoice"
+                    onClick={() => {
+                      setPreviewDraft(null);
+                      setIsViewModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E8DFD8] hover:border-[#6A0019] text-[#2C1810] hover:text-[#6A0019] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Preview Invoice</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-print-invoice"
+                    onClick={() => {
+                      setPreviewDraft(null);
+                      setIsViewModalOpen(true);
+                      setTimeout(() => window.print(), 350);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E8DFD8] hover:border-[#6A0019] text-[#2C1810] hover:text-[#6A0019] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Print Invoice</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-download-invoice-pdf"
+                    onClick={async () => {
+                      try {
+                        await downloadAdminInvoicePdf(invoice._id, invoice.invoiceNumber);
+                      } catch (err: any) {
+                        alert(err.message || 'Failed to download PDF');
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Invoice as PDF</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-[#735A4C] leading-relaxed">
+                  Generate a compliant A4 tax invoice for Table {order.tableNumber}. You can enter optional customer details or preview the calculated tax split before issuing.
+                </p>
+
+                <div className="flex flex-wrap gap-2.5">
+                  <button
+                    type="button"
+                    id="btn-generate-invoice"
+                    onClick={() => setIsGenerateModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <FilePlus className="w-4 h-4" />
+                    <span>Generate Invoice</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-preview-draft-invoice"
+                    onClick={() => setIsGenerateModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E8DFD8] hover:border-[#6A0019] text-[#2C1810] hover:text-[#6A0019] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Preview Invoice</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* INVOICE VIEW / PRINT MODAL */}
+      <InvoiceModal
+        invoice={previewDraft || invoice}
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setPreviewDraft(null);
+        }}
+        isDraftPreview={Boolean(previewDraft)}
+      />
+
+      {/* GENERATE INVOICE MODAL */}
+      <GenerateInvoiceModal
+        order={order}
+        isOpen={isGenerateModalOpen}
+        onClose={() => setIsGenerateModalOpen(false)}
+        onInvoiceGenerated={(inv) => {
+          setInvoice(inv);
+          setIsViewModalOpen(true);
+        }}
+        onOpenSettings={() => {
+          setIsGenerateModalOpen(false);
+          setIsSettingsModalOpen(true);
+        }}
+        onPreview={(draft) => {
+          setPreviewDraft(draft);
+          setIsViewModalOpen(true);
+        }}
+      />
+
+      {/* GST SETTINGS MODAL */}
+      <GstSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+      />
+
+      {/* CONFIRMATION DIALOG MODAL */}
       {confirmModal.isOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2C1810]/40 backdrop-blur-xs"
         >
-          <div className="bg-white border border-stone-200 rounded-2xl max-w-sm w-full p-6 shadow-xl animate-in fade-in zoom-in-95">
-            <h3 className="text-base font-bold text-stone-900 mb-2">
+          <div className="bg-[#FBF7F2] border border-[#E8DFD8] rounded-2xl max-w-sm w-full p-6 shadow-xl animate-in fade-in zoom-in-95">
+            <h3 className="text-base font-bold text-[#2C1810] mb-2 font-['Syne',sans-serif]">
               {confirmModal.title}
             </h3>
-            <p className="text-xs text-stone-600 mb-6 leading-relaxed">
+            <p className="text-xs text-[#735A4C] mb-6 leading-relaxed">
               {confirmModal.message}
             </p>
             <div className="flex gap-2 justify-end">
@@ -639,7 +853,7 @@ function AdminOrderDetailContent() {
                 onClick={() =>
                   setConfirmModal((prev) => ({ ...prev, isOpen: false }))
                 }
-                className="px-4 py-2 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 rounded-xl transition"
+                className="px-4 py-2 text-xs font-semibold text-[#2C1810] bg-white border border-[#E8DFD8] hover:bg-[#EFE6DC]/50 rounded-xl transition"
               >
                 Keep Order
               </button>
@@ -651,8 +865,8 @@ function AdminOrderDetailContent() {
                 }
                 className={`px-4 py-2 text-xs font-semibold rounded-xl text-white transition flex items-center gap-1.5 ${
                   confirmModal.isDestructive
-                    ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-stone-900 hover:bg-stone-800'
+                    ? 'bg-[#991B1B] hover:bg-[#7F1D1D]'
+                    : 'bg-[#6A0019] hover:bg-[#520013]'
                 }`}
               >
                 {isUpdating ? 'Updating...' : confirmModal.confirmLabel}
@@ -661,7 +875,7 @@ function AdminOrderDetailContent() {
           </div>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }
 

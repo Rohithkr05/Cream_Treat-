@@ -1,20 +1,21 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
-  Plus,
   ShoppingBag,
   Hash,
   AlertCircle,
-  UtensilsCrossed,
   Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 import { useCart } from '@/hooks/useCart';
 import { CartItem } from '@/components/CartItem';
-import { createOrder, formatCurrency } from '@/lib/api';
+import { createOrder } from '@/lib/api';
+import { executeProtectedCheckout } from '@/lib/checkout';
 import { parseTableUrlParam, validateCustomerTableNumber } from '@/lib/qr';
 
 function CartPageContent() {
@@ -35,6 +36,7 @@ function CartPageContent() {
   const [tableError, setTableError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   // Sync table from query parameter if provided (e.g. /cart?table=5)
   useEffect(() => {
@@ -61,6 +63,7 @@ function CartPageContent() {
   }, [tableNumber, tableInput, tableError]);
 
   const menuUrl = tableNumber ? `/order?table=${tableNumber}` : '/order';
+  const totalRupees = Math.round(totalAmountPaise / 100);
 
   const validateAndSaveTable = (value: string): boolean => {
     const trimmed = value.trim();
@@ -105,8 +108,7 @@ function CartPageContent() {
   };
 
   const handlePlaceOrderClick = async () => {
-    // Prevent double submission
-    if (isSubmitting) return;
+    if (submittingRef.current || isSubmitting) return;
 
     if (items.length === 0) {
       setSubmitError('Your cart is empty. Please add items to place an order.');
@@ -123,134 +125,127 @@ function CartPageContent() {
     }
 
     const targetTable = parseInt(tableInput.trim(), 10);
-    if (!targetTable || targetTable <= 0) {
-      setTableError('Please enter your table number.');
-      return;
-    }
+    if (submittingRef.current) return;
 
-    try {
-      setIsSubmitting(true);
-      setSubmitError(null);
+    setIsSubmitting(true);
+    setSubmitError(null);
 
-      // Security: Only send foodItemId and quantity. Never send prices or totals.
-      const payload = {
-        tableNumber: targetTable,
-        items: items.map((ci) => ({
-          foodItemId: ci.foodItem._id,
-          quantity: ci.quantity,
-        })),
-      };
+    const outcome = await executeProtectedCheckout({
+      lock: submittingRef,
+      tableNumber: targetTable,
+      items,
+      submitOrder: createOrder,
+      onSuccess: (orderResponse) => {
+        try {
+          sessionStorage.setItem(
+            'cream_treat_last_order',
+            JSON.stringify(orderResponse),
+          );
+        } catch {
+          // Ignore session storage error
+        }
+        clearCart();
+        router.push(`/order-success?orderId=${encodeURIComponent(orderResponse.id)}`);
+      },
+    });
 
-      const orderResponse = await createOrder(payload);
-
-      // Cache order in sessionStorage for instant confirmation rendering
-      try {
-        sessionStorage.setItem(
-          'cream_treat_last_order',
-          JSON.stringify(orderResponse),
-        );
-      } catch {
-        // Ignore session storage errors
-      }
-
-      // CRITICAL: Clear cart ONLY after backend order creation confirms success
-      clearCart();
-
-      // Navigate to order confirmation page
-      router.push(`/order-success?orderId=${encodeURIComponent(orderResponse.id)}`);
-    } catch (err: unknown) {
+    if (outcome.status === 'validation_error' || outcome.status === 'failed') {
       setIsSubmitting(false);
       setSubmitError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to place your order. Please try again.',
+        outcome.error || "We couldn't place your order right now. Please try again.",
       );
     }
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col">
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-2xs">
-        <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen bg-[#FBF7F2] text-[#6A0019] flex flex-col font-body selection:bg-[#6A0019] selection:text-[#EFE6DC]">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-[#6A0019] text-[#EFE6DC] border-b border-[#EFE6DC]/20 shadow-xs">
+        <div className="max-w-xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <Link
             href={menuUrl}
-            className="flex items-center gap-1.5 text-xs font-semibold text-stone-700 hover:text-stone-900 p-1 rounded-lg hover:bg-stone-100 transition-colors"
-            aria-label="Back to digital menu"
+            className="flex items-center gap-1.5 text-xs font-bold text-[#EFE6DC] hover:text-white px-3 py-1.5 rounded-full bg-[#EFE6DC]/10 hover:bg-[#EFE6DC]/20 transition-all cursor-pointer font-display uppercase tracking-wider"
+            aria-label="Back to menu"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             <span>Menu</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-amber-600 text-white flex items-center justify-center">
-              <UtensilsCrossed className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-2.5">
+            <div className="relative w-7 h-7 rounded-full overflow-hidden border border-[#EFE6DC]/30 p-0.5 bg-[#EFE6DC]">
+              <Image
+                src="/images/cream-treat-logo.jpg"
+                alt="Cream Treat Logo"
+                fill
+                sizes="28px"
+                className="object-cover rounded-full"
+              />
             </div>
-            <span className="font-bold text-sm text-stone-900 tracking-tight">
+            <span className="font-display font-extrabold text-sm tracking-wider uppercase text-[#EFE6DC]">
               Cream Treat
             </span>
           </div>
 
-          <span className="text-xs font-medium text-stone-400">Review</span>
+          <span className="font-display text-xs uppercase tracking-widest text-[#EFE6DC]/80 font-semibold">
+            Review Order
+          </span>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-xl w-full mx-auto p-4 pb-32">
+      <main className="flex-1 max-w-xl w-full mx-auto p-4 sm:p-6 pb-36">
         {items.length === 0 ? (
-          /* Empty Cart State */
           <div className="py-20 text-center flex flex-col items-center justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-stone-100 text-stone-400 flex items-center justify-center mb-4 border border-stone-200/60 shadow-2xs">
+            <div className="w-16 h-16 rounded-2xl bg-[#EFE6DC] text-[#6A0019] flex items-center justify-center mb-4 border border-[#6A0019]/20 shadow-xs">
               <ShoppingBag className="w-8 h-8" />
             </div>
-            <h2 className="text-lg font-bold text-stone-900 tracking-tight">
+            <h2 className="text-xl font-display font-bold text-[#6A0019] tracking-tight">
               Your cart is empty
             </h2>
-            <p className="mt-1.5 text-xs text-stone-500 max-w-xs leading-relaxed">
-              Add some delicious dishes and drinks from our menu to begin your order.
+            <p className="mt-1.5 text-xs text-[#6A0019]/75 max-w-xs leading-relaxed font-body">
+              Explore our freshly prepared sundaes, cold coffees, sandwiches, and snacks to start your order.
             </p>
             <Link
               href={menuUrl}
-              className="mt-6 inline-flex items-center justify-center px-6 py-2.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs shadow-amber-600/20 transition-all"
+              className="mt-6 inline-flex items-center justify-center px-6 py-3 bg-[#6A0019] hover:bg-[#520013] active:scale-95 text-[#EFE6DC] text-xs font-display font-bold uppercase tracking-[0.2em] rounded-full shadow-xs transition-all cursor-pointer"
             >
               Browse Menu
             </Link>
           </div>
         ) : (
-          /* Cart Review View */
-          <div className="space-y-4">
-            {/* Submission Error Banner */}
+          <div className="space-y-5">
             {submitError && (
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs flex items-start gap-2.5 shadow-2xs animate-in fade-in duration-200">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs flex items-start gap-3 shadow-xs">
+                <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="font-bold">Order could not be placed</p>
-                  <p className="text-[11px] text-rose-700 mt-0.5 leading-relaxed">
+                  <p className="text-[11px] text-rose-700 mt-0.5 leading-relaxed font-body">
                     {submitError}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Table Number Card */}
-            <div className="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-2xs">
+            {/* Dining Table Confirmation Card */}
+            <div className="bg-[#EFE6DC]/40 rounded-2xl p-4 sm:p-5 border border-[#6A0019]/20 shadow-2xs">
               <div className="flex items-center justify-between mb-2">
                 <label
                   htmlFor="tableInput"
-                  className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5"
+                  className="text-xs font-display font-bold text-[#6A0019] uppercase tracking-wider flex items-center gap-1.5"
                 >
-                  <Hash className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Table Number</span>
+                  <Hash className="w-3.5 h-3.5 text-[#6A0019]" />
+                  <span>Dining Table Number</span>
                 </label>
                 {tableNumber && !tableError && (
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    Confirmed
+                  <span className="text-[10px] font-bold text-[#6A0019] bg-[#6A0019]/10 px-2 py-0.5 rounded-full border border-[#6A0019]/20 flex items-center gap-1 font-body">
+                    <CheckCircle2 className="w-3 h-3 text-[#6A0019]" /> Confirmed
                   </span>
                 )}
               </div>
 
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
+                  <Hash className="w-4 h-4 text-[#6A0019]/40 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     id="tableInput"
                     type="text"
@@ -260,82 +255,57 @@ function CartPageContent() {
                     value={tableInput}
                     onChange={handleTableInputChange}
                     placeholder="Enter table number (e.g. 5)"
-                    className={`w-full px-3.5 py-2 text-sm font-semibold rounded-xl border transition-all focus:outline-none focus:ring-2 ${
+                    className={`w-full pl-9 pr-3.5 py-2.5 text-sm font-bold font-body rounded-xl border transition-all focus:outline-none focus:ring-2 bg-white ${
                       tableError
-                        ? 'border-rose-300 bg-rose-50/50 text-rose-900 focus:ring-rose-500'
-                        : 'border-stone-200 bg-stone-50 text-stone-900 focus:bg-white focus:ring-amber-500'
-                    } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        ? 'border-rose-400 text-rose-900 focus:ring-rose-500'
+                        : 'border-[#6A0019]/30 text-[#6A0019] focus:ring-[#6A0019]'
+                    }`}
                   />
                 </div>
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => validateAndSaveTable(tableInput)}
-                  className="px-3.5 py-2 bg-stone-900 text-white text-xs font-semibold rounded-xl hover:bg-stone-800 active:scale-95 transition-all shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  Set Table
-                </button>
               </div>
 
-              {tableError ? (
-                <p className="mt-1.5 text-xs text-rose-600 flex items-center gap-1 font-medium">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{tableError}</span>
-                </p>
-              ) : (
-                <p className="mt-1.5 text-[11px] text-stone-400">
-                  {tableNumber
-                    ? `Food will be delivered to Table ${tableNumber}.`
-                    : 'Please enter your table number to proceed with ordering.'}
+              {tableError && (
+                <p className="mt-1.5 text-xs text-rose-700 font-medium">
+                  {tableError}
                 </p>
               )}
             </div>
 
             {/* Cart Items List */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-1">
+                <h3 className="font-display text-xs uppercase tracking-[0.2em] font-bold text-[#6A0019]">
                   Ordered Items ({totalItemCount})
                 </h3>
+                <Link
+                  href={menuUrl}
+                  className="text-xs text-[#6A0019]/70 hover:text-[#6A0019] font-medium transition-colors"
+                >
+                  + Add More
+                </Link>
               </div>
 
-              <div className="grid gap-2.5">
-                {items.map((item) => (
-                  <CartItem key={item.foodItem._id} item={item} />
-                ))}
-              </div>
+              {items.map((cartItem) => (
+                <CartItem key={cartItem.foodItem._id} item={cartItem} />
+              ))}
             </div>
 
-            {/* + Add More Items Link */}
-            <div className="pt-1">
-              <Link
-                href={menuUrl}
-                className="w-full py-2.5 px-4 bg-white hover:bg-stone-100 active:scale-98 border border-dashed border-stone-300 rounded-xl text-xs font-bold text-amber-700 flex items-center justify-center gap-1.5 transition-all shadow-2xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add More Items</span>
-              </Link>
-            </div>
-
-            {/* Order Summary Card */}
-            <div className="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-2xs space-y-3">
-              <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider border-b border-stone-100 pb-2">
-                Order Summary
-              </h3>
-
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-stone-600">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-stone-900">
-                    {formatCurrency(totalAmountPaise)}
-                  </span>
-                </div>
+            {/* Bill Summary */}
+            <div className="bg-[#EFE6DC]/30 rounded-2xl p-4 sm:p-5 border border-[#6A0019]/15 space-y-2.5">
+              <div className="flex items-center justify-between text-xs text-[#6A0019]/80 font-body">
+                <span>Items Subtotal</span>
+                <span className="tabular-nums font-semibold">₹{totalRupees}</span>
               </div>
-
-              <div className="border-t border-stone-100 pt-2.5 flex justify-between items-baseline">
-                <span className="text-sm font-bold text-stone-900">Total</span>
-                <span className="text-lg font-bold text-stone-900">
-                  {formatCurrency(totalAmountPaise)}
+              <div className="flex items-center justify-between text-xs text-[#6A0019]/80 font-body">
+                <span>Taxes & Service</span>
+                <span className="font-semibold">Inclusive</span>
+              </div>
+              <div className="pt-2 border-t border-[#6A0019]/15 flex items-baseline justify-between">
+                <span className="font-display text-xs uppercase tracking-widest font-bold text-[#6A0019]">
+                  Total Payable
+                </span>
+                <span className="font-body text-xl font-bold text-[#6A0019] tabular-nums">
+                  ₹{totalRupees}
                 </span>
               </div>
             </div>
@@ -343,35 +313,32 @@ function CartPageContent() {
         )}
       </main>
 
-      {/* Sticky Bottom Action Bar (if cart has items) */}
+      {/* Floating Bottom Action */}
       {items.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200/80 p-4 shadow-lg shadow-stone-950/5">
-          <div className="max-w-xl mx-auto flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[11px] text-stone-400 font-medium">To Pay</p>
-              <p className="text-base font-bold text-stone-900">
-                {formatCurrency(totalAmountPaise)}
-              </p>
+        <div className="fixed bottom-0 inset-x-0 z-40 p-4 bg-[#FBF7F2]/95 backdrop-blur-md border-t border-[#6A0019]/15">
+          <div className="max-w-xl mx-auto flex items-center gap-4">
+            <div className="shrink-0">
+              <span className="text-[10px] uppercase tracking-wider text-[#6A0019]/60 block font-semibold">
+                Total
+              </span>
+              <span className="font-body text-lg sm:text-xl font-bold text-[#6A0019] tabular-nums">
+                ₹{totalRupees}
+              </span>
             </div>
 
             <button
-              id="place-order-button"
               type="button"
               onClick={handlePlaceOrderClick}
-              disabled={isSubmitting || Boolean(tableError) || !tableInput.trim()}
-              className={`flex-1 max-w-xs py-3 px-5 bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold text-xs rounded-xl shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-2 ${
-                isSubmitting || Boolean(tableError) || !tableInput.trim()
-                  ? 'opacity-60 cursor-not-allowed active:scale-100'
-                  : ''
-              }`}
+              disabled={isSubmitting}
+              className="flex-1 py-3.5 px-6 rounded-full bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] font-display text-xs sm:text-sm uppercase tracking-[0.2em] font-bold shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Placing Order...</span>
                 </>
               ) : (
-                <span>Confirm & Place Order</span>
+                <span>Place Dine-In Order →</span>
               )}
             </button>
           </div>
@@ -385,8 +352,8 @@ export default function CartPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-amber-600 border-t-transparent animate-spin" />
+        <div className="min-h-screen bg-[#FBF7F2] p-4 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-[#6A0019]" />
         </div>
       }
     >

@@ -2,15 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
-  QrCode,
   Printer,
   Sparkles,
   AlertCircle,
-  LogOut,
   RefreshCw,
-  UtensilsCrossed,
+  QrCode,
+  Info,
 } from 'lucide-react';
 import {
   adminGetProfile,
@@ -21,6 +19,7 @@ import {
 import { AdminUser } from '@/types/admin';
 import { TableQRCard } from '@/components/TableQRCard';
 import { getFrontendAppUrl, validateQRTableCount } from '@/lib/qr';
+import { AdminLayout } from '@/components/AdminLayout';
 
 export default function AdminQRManagementPage() {
   const router = useRouter();
@@ -78,7 +77,6 @@ export default function AdminQRManagementPage() {
     };
   }, [router]);
 
-  // Handle Logout
   const handleLogout = () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
@@ -86,7 +84,6 @@ export default function AdminQRManagementPage() {
     router.replace('/admin/login');
   };
 
-  // Handle Generate QR Codes submission
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
     const validation = validateQRTableCount(tableCountInput);
@@ -105,25 +102,23 @@ export default function AdminQRManagementPage() {
     }
   };
 
-  // Trigger browser print dialog with printable layout
   const handlePrint = () => {
     window.print();
   };
 
   if (isAuthChecking) {
     return (
-      <div className="min-h-screen bg-stone-100 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-amber-600 border-t-transparent animate-spin" />
-          <p className="text-xs font-semibold text-stone-500">
-            Verifying staff credentials...
+      <main className="min-h-screen flex items-center justify-center bg-[#FBF7F2] p-4 font-body">
+        <div className="text-center">
+          <div className="w-8 h-8 border-3 border-[#6A0019] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs uppercase tracking-widest text-[#2C1810]/70 font-semibold">
+            Verifying Admin Session...
           </p>
         </div>
-      </div>
+      </main>
     );
   }
 
-  // Generate array of table numbers 1..N
   const tableNumbers = Array.from(
     { length: activeTableCount },
     (_, i) => i + 1,
@@ -133,253 +128,136 @@ export default function AdminQRManagementPage() {
     baseUrlInput.includes('localhost') || baseUrlInput.includes('127.0.0.1');
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900 flex flex-col">
-      {/* Top Header Navigation (Part 14) - Hidden on print */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-xs print:hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center shadow-xs">
-              <UtensilsCrossed className="w-4 h-4" />
-            </div>
+    <AdminLayout
+      activeNav="qr"
+      title="Table QR Standees"
+      subtitle="Generate, preview, and print dine-in ordering QR cards for café tables."
+      admin={admin}
+      onLogout={handleLogout}
+      isLoggingOut={isLoggingOut}
+      headerActions={
+        <button
+          type="button"
+          onClick={handlePrint}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] rounded-xl text-xs font-display uppercase tracking-wider font-bold transition shadow-2xs cursor-pointer"
+        >
+          <Printer className="w-4 h-4 stroke-[2]" />
+          <span>Print All Standees</span>
+        </button>
+      }
+    >
+      <div className="space-y-6">
+        {/* Generator Configuration Form Card (Hidden in Print) */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-[#6A0019]/15 shadow-2xs print:hidden space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#6A0019]/10">
             <div>
-              <h1 className="font-bold tracking-tight text-base sm:text-lg text-stone-900 uppercase">
-                CREAM TREAT
-              </h1>
-              <p className="text-[11px] font-medium text-stone-500 -mt-1 hidden sm:block">
-                Table QR Management
-              </p>
-            </div>
-          </div>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs font-medium text-stone-600">
-            <Link
-              href="/admin"
-              className="px-3 py-1 text-stone-600 hover:text-stone-900 hover:bg-white/60 rounded-lg transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/admin"
-              className="px-3 py-1 text-stone-600 hover:text-stone-900 hover:bg-white/60 rounded-lg transition-colors font-medium"
-            >
-              Orders
-            </Link>
-            <Link
-              href="/admin/menu"
-              className="px-3 py-1 text-stone-600 hover:text-stone-900 hover:bg-white/60 rounded-lg transition-colors font-medium"
-            >
-              Menu
-            </Link>
-            <span className="px-3 py-1 bg-white text-stone-900 rounded-lg shadow-xs font-semibold">
-              QR Codes
-            </span>
-          </nav>
-
-          {/* Right Action: Admin Profile & Logout */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {admin && (
-              <div className="hidden sm:flex flex-col text-right">
-                <span className="text-xs font-semibold text-stone-800">
-                  {admin.name}
-                </span>
-                <span className="text-[10px] text-stone-400 -mt-0.5">
-                  {admin.email}
-                </span>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="p-2 sm:px-3 sm:py-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50"
-              title="Sign Out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 pb-20">
-        {/* Page Title & Overview Banner (Hidden on Print) */}
-        <div className="mb-6 print:hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-stone-200 shadow-2xs">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold mb-2">
-                <QrCode className="w-3.5 h-3.5 text-amber-600" />
-                <span>Physical Table QR System</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">
-                Table QR Codes
+              <h2 className="font-display font-bold text-sm uppercase tracking-wider text-[#6A0019]">
+                QR Generator Controls
               </h2>
-              <p className="text-xs text-stone-500 mt-1 max-w-xl leading-relaxed">
-                Generate high-resolution printable QR codes for restaurant dining tables.
-                Customers scanning a table QR are automatically routed to the digital menu
-                with their table number assigned.
+              <p className="text-xs text-[#2C1810]/60 mt-0.5 font-body">
+                Adjust how many table cards to generate and verify your local network IP for phone testing.
               </p>
             </div>
+            <span className="text-xs font-mono font-bold text-[#6A0019] bg-[#EFE6DC] px-2.5 py-1 rounded-full border border-[#6A0019]/15">
+              {activeTableCount} Active Tables
+            </span>
+          </div>
 
-            {/* Quick Print Action */}
-            <div className="flex items-center gap-2 self-start sm:self-center">
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 active:scale-95 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2"
-                id="print-qr-codes-button"
+          <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+            {/* Number of Tables */}
+            <div className="sm:col-span-4">
+              <label
+                htmlFor="tableCount"
+                className="block text-xs uppercase tracking-wider font-bold text-[#6A0019] mb-1.5 font-display"
               >
-                <Printer className="w-4 h-4" />
-                <span>Print QR Codes</span>
+                Table Count (1–100)
+              </label>
+              <input
+                id="tableCount"
+                type="number"
+                min="1"
+                max="100"
+                value={tableCountInput}
+                onChange={(e) => {
+                  setTableCountInput(e.target.value);
+                  if (inputError) setInputError(null);
+                }}
+                className="w-full px-3.5 py-2.5 bg-[#FBF7F2] border border-[#6A0019]/20 rounded-xl text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-[#6A0019] focus:bg-white"
+              />
+            </div>
+
+            {/* Base URL Override */}
+            <div className="sm:col-span-5">
+              <label
+                htmlFor="baseUrl"
+                className="block text-xs uppercase tracking-wider font-bold text-[#6A0019] mb-1.5 font-display"
+              >
+                Target Base URL
+              </label>
+              <input
+                id="baseUrl"
+                type="text"
+                value={baseUrlInput}
+                onChange={(e) => setBaseUrlInput(e.target.value)}
+                placeholder="http://192.168.70.110:3000"
+                className="w-full px-3.5 py-2.5 bg-[#FBF7F2] border border-[#6A0019]/20 rounded-xl text-xs font-mono text-[#2C1810] focus:outline-none focus:ring-2 focus:ring-[#6A0019] focus:bg-white"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <div className="sm:col-span-3">
+              <button
+                type="submit"
+                className="w-full min-h-[42px] py-2.5 px-4 bg-[#6A0019] hover:bg-[#520013] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Apply</span>
               </button>
             </div>
-          </div>
-        </div>
+          </form>
 
-        {/* Generator Controls Card (Part 4) - Hidden on Print */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-2xs p-5 mb-6 print:hidden">
-          <form onSubmit={handleGenerate} className="space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-end gap-3 sm:gap-4">
-              <div className="w-full lg:w-48">
-                <label
-                  htmlFor="tableCountInput"
-                  className="block text-xs font-bold text-stone-800 uppercase tracking-wider mb-1.5"
-                >
-                  Number of tables:
-                </label>
-                <div className="relative">
-                  <input
-                    id="tableCountInput"
-                    type="number"
-                    min="1"
-                    max="100"
-                    step="1"
-                    value={tableCountInput}
-                    onChange={(e) => {
-                      setTableCountInput(e.target.value);
-                      if (inputError) setInputError(null);
-                    }}
-                    placeholder="e.g. 10"
-                    className={`w-full px-3.5 py-2 text-sm font-bold text-stone-900 bg-stone-50 border rounded-xl focus:outline-none focus:ring-2 ${
-                      inputError
-                        ? 'border-rose-300 bg-rose-50/40 focus:ring-rose-500 text-rose-900'
-                        : 'border-stone-200 focus:bg-white focus:ring-amber-500'
-                    }`}
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-stone-400 pointer-events-none">
-                    tables (1–100)
-                  </span>
-                </div>
-              </div>
+          {inputError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{inputError}</span>
+            </div>
+          )}
 
-              {/* Target Base URL Configuration (Mobile / Production Support) */}
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label
-                    htmlFor="baseUrlInput"
-                    className="block text-xs font-bold text-stone-800 uppercase tracking-wider"
-                  >
-                    Target Base URL:
-                  </label>
-                  {isLocalhostUrl ? (
-                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full" title="Phones cannot connect to localhost. Use your computer's LAN IP for mobile testing.">
-                      PC Only (localhost)
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full" title="Phones on the same Wi-Fi can scan this QR code and order.">
-                      Mobile / Network Ready
-                    </span>
-                  )}
-                </div>
-                <input
-                  id="baseUrlInput"
-                  type="text"
-                  value={baseUrlInput}
-                  onChange={(e) => setBaseUrlInput(e.target.value)}
-                  placeholder="e.g. http://192.168.1.10:3000 or https://creamtreat.example.com"
-                  className="w-full px-3.5 py-2 text-xs font-mono font-medium text-stone-800 bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="submit"
-                  id="generate-qr-button"
-                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:scale-98 text-white text-xs font-bold rounded-xl shadow-xs shadow-amber-600/20 transition-all flex items-center gap-2 shrink-0"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Generate QR Codes</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTableCountInput('10');
-                    setActiveTableCount(10);
-                    const defaultUrl = getFrontendAppUrl();
-                    setBaseUrlInput(defaultUrl);
-                    setActiveBaseUrl(defaultUrl);
-                    setInputError(null);
-                  }}
-                  className="p-2.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-xl text-xs font-semibold transition-colors shrink-0"
-                  title="Reset to 10 tables & detected URL"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
+          {isLocalhostUrl && (
+            <div className="p-3 bg-[#FDF6E2] border border-[#E8D194] text-[#8C5D00] text-xs rounded-xl flex items-start gap-2.5 font-body">
+              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Phone Testing Tip: </span>
+                <span>
+                  Scanning a QR with <code className="font-mono bg-white/60 px-1 py-0.5 rounded">localhost</code> from your phone won't connect. For phone cameras, use your Wi-Fi LAN IP (e.g. <code className="font-mono bg-white/60 px-1 py-0.5 rounded">http://192.168.70.110:3000</code>).
+                </span>
               </div>
             </div>
-
-            {/* Validation Error Message */}
-            {inputError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span className="font-medium">{inputError}</span>
-              </div>
-            )}
-
-            <p className="text-[11px] text-stone-400">
-              Enter the total count of dining tables in your restaurant (supported range: 1 to 100).
-              Each table will receive a unique, permanent QR code pointing to{' '}
-              <span className="font-mono text-stone-600">
-                {activeBaseUrl || 'http://localhost:3000'}/order?table=X
-              </span>.
-            </p>
-          </form>
+          )}
         </div>
 
-        {/* Section Header with Stats (Hidden on Print) */}
-        <div className="flex items-center justify-between mb-4 px-1 print:hidden">
-          <h3 className="text-xs font-bold text-stone-800 uppercase tracking-wider">
-            Generated Cards ({tableNumbers.length} Tables)
-          </h3>
-          <span className="text-xs text-stone-500 font-medium">
-            Tables 1 to {activeTableCount}
-          </span>
-        </div>
+        {/* QR Code Cards Grid */}
+        <div>
+          <div className="flex items-center justify-between pb-3 print:hidden">
+            <h3 className="font-display font-bold text-xs uppercase tracking-[0.2em] text-[#6A0019]">
+              Generated Standees ({tableNumbers.length})
+            </h3>
+            <span className="text-xs text-[#2C1810]/60 font-body">
+              Ready for table placement
+            </span>
+          </div>
 
-        {/* PRINT ONLY HEADER */}
-        <div className="hidden print:block mb-8 text-center border-b pb-4">
-          <h1 className="text-2xl font-black tracking-tight uppercase text-stone-900">
-            Cream Treat — Table QR Codes
-          </h1>
-          <p className="text-xs text-stone-600 mt-1">
-            Cut along the borders and place on designated dining tables.
-          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 print:grid-cols-2 print:gap-6">
+            {tableNumbers.map((tableNum) => (
+              <TableQRCard
+                key={tableNum}
+                tableNumber={tableNum}
+                baseUrlOverride={activeBaseUrl}
+              />
+            ))}
+          </div>
         </div>
-
-        {/* QR Codes Grid (Screen & Print Layout) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 print:grid-cols-2 print:gap-6 print:m-0">
-          {tableNumbers.map((tableNum) => (
-            <TableQRCard
-              key={tableNum}
-              tableNumber={tableNum}
-              baseUrlOverride={activeBaseUrl || undefined}
-            />
-          ))}
-        </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

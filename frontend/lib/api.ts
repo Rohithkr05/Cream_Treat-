@@ -1,4 +1,12 @@
 import {
+  resolveApiBaseUrl,
+  formatOrderApiError,
+  formatOrderNetworkError,
+  extractBackendErrorMessage,
+  formatMenuApiError,
+  formatMenuNetworkError,
+} from '@/lib/checkout';
+import {
   Category,
   CreateOrderRequest,
   FoodItem,
@@ -18,6 +26,17 @@ import {
   UpdateFoodItemPayload,
   DeleteFoodItemResponse,
 } from '@/types/admin';
+import {
+  AnalyticsCategoriesResponse,
+  AnalyticsLeastSellingResponse,
+  AnalyticsOrderStatusResponse,
+  AnalyticsOverviewResponse,
+  AnalyticsPeakHoursResponse,
+  AnalyticsRecentOrdersResponse,
+  AnalyticsSalesResponse,
+  AnalyticsTopItemsResponse,
+  SalesInterval,
+} from '@/types/analytics';
 
 /**
  * Returns the configured backend REST API base URL.
@@ -26,30 +45,16 @@ import {
  * and falls back to http://localhost:3001 for local development.
  */
 export function getApiBaseUrl(): string {
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:3001';
-    }
-    const envUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (
-      envUrl &&
-      typeof envUrl === 'string' &&
-      !envUrl.includes('localhost') &&
-      !envUrl.includes('127.0.0.1')
-    ) {
-      return envUrl.trim().replace(/\/+$/, '');
-    }
-    const protocol = window.location.protocol;
-    return `${protocol}//${hostname}:3001`;
-  }
-
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
-    return envUrl.trim().replace(/\/+$/, '');
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return resolveApiBaseUrl({
+      envUrl,
+      windowHostname: window.location.hostname,
+      windowProtocol: window.location.protocol,
+    });
   }
 
-  return 'http://localhost:3001';
+  return resolveApiBaseUrl({ envUrl });
 }
 
 /**
@@ -73,33 +78,44 @@ async function parseResponseErrorDetails(res: Response): Promise<string> {
   }
 }
 
+async function parseResponseErrorBody(res: Response): Promise<unknown> {
+  try {
+    return await res.clone().json();
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchCategories(): Promise<Category[]> {
   const baseUrl = getApiBaseUrl();
+  let res: Response;
   try {
-    const res = await fetch(`${baseUrl}/menu/categories`, {
+    res = await fetch(`${baseUrl}/menu/categories`, {
       cache: 'no-store',
     });
-    if (!res.ok) {
-      const details = await parseResponseErrorDetails(res);
-      console.error(
-        `[Cream Treat API] GET ${baseUrl}/menu/categories failed (${res.status} ${res.statusText}):`,
-        details,
-      );
-      throw new Error('Unable to load menu categories. Please try again.');
-    }
-    return res.json();
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('Unable to load')) {
-      throw err;
-    }
     console.error(
       `[Cream Treat API] Connection error GET ${baseUrl}/menu/categories:`,
       err,
     );
+    throw new Error(formatMenuNetworkError(err));
+  }
+
+  if (!res.ok) {
+    const [details, errorBody] = await Promise.all([
+      parseResponseErrorDetails(res),
+      parseResponseErrorBody(res),
+    ]);
+    console.error(
+      `[Cream Treat API] GET ${baseUrl}/menu/categories failed (${res.status} ${res.statusText}):`,
+      details,
+    );
     throw new Error(
-      'Unable to connect to the restaurant menu service. Please verify your connection.',
+      formatMenuApiError(res.status, errorBody, 'menu categories'),
     );
   }
+
+  return res.json();
 }
 
 export async function fetchFoodItems(
@@ -109,28 +125,29 @@ export async function fetchFoodItems(
   const url = categoryId
     ? `${baseUrl}/menu/items?categoryId=${encodeURIComponent(categoryId)}`
     : `${baseUrl}/menu/items`;
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       cache: 'no-store',
     });
-    if (!res.ok) {
-      const details = await parseResponseErrorDetails(res);
-      console.error(
-        `[Cream Treat API] GET ${url} failed (${res.status} ${res.statusText}):`,
-        details,
-      );
-      throw new Error('Unable to load menu items. Please try again.');
-    }
-    return res.json();
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes('Unable to load')) {
-      throw err;
-    }
     console.error(`[Cream Treat API] Connection error GET ${url}:`, err);
-    throw new Error(
-      'Unable to connect to the restaurant menu service. Please verify your connection.',
-    );
+    throw new Error(formatMenuNetworkError(err));
   }
+
+  if (!res.ok) {
+    const [details, errorBody] = await Promise.all([
+      parseResponseErrorDetails(res),
+      parseResponseErrorBody(res),
+    ]);
+    console.error(
+      `[Cream Treat API] GET ${url} failed (${res.status} ${res.statusText}):`,
+      details,
+    );
+    throw new Error(formatMenuApiError(res.status, errorBody, 'menu items'));
+  }
+
+  return res.json();
 }
 
 export async function fetchFoodItemById(id: string): Promise<FoodItem> {
@@ -164,8 +181,11 @@ export async function fetchFoodItemById(id: string): Promise<FoodItem> {
 export async function createOrder(
   orderData: CreateOrderRequest,
 ): Promise<OrderResponse> {
+  const baseUrl = getApiBaseUrl();
+  const endpoint = `${baseUrl}/orders`;
+
   try {
-    const res = await fetch(`${getApiBaseUrl()}/orders`, {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -174,38 +194,46 @@ export async function createOrder(
     });
 
     if (!res.ok) {
-      let errorMessage = 'Unable to place your order. Please try again.';
+      let errorData: unknown = null;
       try {
-        const errorData = await res.json();
-        if (errorData?.message) {
-          const msg = Array.isArray(errorData.message)
-            ? errorData.message.join(', ')
-            : String(errorData.message);
-
-          if (msg.toLowerCase().includes('unavailable')) {
-            errorMessage =
-              'Some items in your cart are currently unavailable. Please review your cart.';
-          } else if (msg.toLowerCase().includes('not found')) {
-            errorMessage =
-              'One or more items in your cart could not be found. Please review your cart.';
-          } else if (msg.toLowerCase().includes('table')) {
-            errorMessage = 'Please provide a valid table number (1–999).';
-          }
-        }
+        errorData = await res.clone().json();
       } catch {
-        // Fallback to default user-friendly error message
+        try {
+          const textBody = await res.clone().text();
+          if (textBody) {
+            errorData = { message: textBody };
+          }
+        } catch {
+          errorData = null;
+        }
       }
-      throw new Error(errorMessage);
+
+      const rawDetails = extractBackendErrorMessage(errorData);
+      console.error(
+        `[Cream Treat API] POST ${endpoint} failed (HTTP ${res.status} ${res.statusText}):`,
+        rawDetails || errorData || 'No response body',
+      );
+
+      throw new Error(formatOrderApiError(res.status, errorData));
     }
 
     return res.json();
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      throw err;
+    // Re-throw formatted API errors directly without wrapping as network failure
+    if (err instanceof Error && !(err instanceof TypeError)) {
+      const lower = err.message.toLowerCase();
+      if (
+        !lower.includes('failed to fetch') &&
+        !lower.includes('networkerror') &&
+        !lower.includes('fetch failed') &&
+        !lower.includes('load failed')
+      ) {
+        throw err;
+      }
     }
-    throw new Error(
-      'Unable to place your order. Please check your connection and try again.',
-    );
+
+    console.error(`[Cream Treat API] Network error POST ${endpoint}:`, err);
+    throw new Error(formatOrderNetworkError(err));
   }
 }
 
@@ -826,6 +854,501 @@ export async function deleteAdminFoodItem(
   }
   return res.json();
 }
+
+/* ==========================================================================
+   Admin Analytics API Client
+   ========================================================================== */
+
+export interface AnalyticsRangeQueryParams {
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface AnalyticsSalesQueryParams extends AnalyticsRangeQueryParams {
+  interval?: SalesInterval;
+}
+
+export interface AnalyticsPaginationQueryParams
+  extends AnalyticsRangeQueryParams {
+  page?: number;
+  limit?: number;
+}
+
+async function adminAnalyticsFetch<T>(
+  endpoint: string,
+  params?: Record<string, string | number | undefined>,
+  tokenOverride?: string,
+): Promise<T> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) {
+    throw new Error('Unauthorized');
+  }
+
+  const queryParams = new URLSearchParams();
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== '') {
+        queryParams.set(key, String(value));
+      }
+    }
+  }
+
+  const qs = queryParams.toString();
+  const url = qs
+    ? `${getApiBaseUrl()}/admin/analytics/${endpoint}?${qs}`
+    : `${getApiBaseUrl()}/admin/analytics/${endpoint}`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('Unauthorized');
+  }
+  if (res.status === 403) {
+    throw new Error('Administrator access required.');
+  }
+  if (!res.ok) {
+    const msg = await parseResponseErrorMessage(
+      res,
+      'Unable to load analytics data.',
+    );
+    throw new Error(msg);
+  }
+
+  return res.json();
+}
+
+export function fetchAnalyticsOverview(
+  params?: AnalyticsRangeQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsOverviewResponse> {
+  return adminAnalyticsFetch<AnalyticsOverviewResponse>(
+    'overview',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+export function fetchAnalyticsSales(
+  params?: AnalyticsSalesQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsSalesResponse> {
+  return adminAnalyticsFetch<AnalyticsSalesResponse>(
+    'sales',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+export function fetchAnalyticsTopItems(
+  params?: AnalyticsPaginationQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsTopItemsResponse> {
+  return adminAnalyticsFetch<AnalyticsTopItemsResponse>(
+    'top-items',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+export function fetchAnalyticsLeastSellingItems(
+  params?: AnalyticsPaginationQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsLeastSellingResponse> {
+  return adminAnalyticsFetch<AnalyticsLeastSellingResponse>(
+    'least-selling-items',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+export function fetchAnalyticsCategories(
+  params?: AnalyticsRangeQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsCategoriesResponse> {
+  return adminAnalyticsFetch<AnalyticsCategoriesResponse>(
+    'categories',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+export function fetchAnalyticsOrderStatus(
+  params?: AnalyticsRangeQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsOrderStatusResponse> {
+  return adminAnalyticsFetch<AnalyticsOrderStatusResponse>(
+    'order-status',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+export function fetchAnalyticsPeakHours(
+  params?: AnalyticsRangeQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsPeakHoursResponse> {
+  return adminAnalyticsFetch<AnalyticsPeakHoursResponse>(
+    'peak-hours',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+export function fetchAnalyticsRecentOrders(
+  params?: AnalyticsPaginationQueryParams,
+  tokenOverride?: string,
+): Promise<AnalyticsRecentOrdersResponse> {
+  return adminAnalyticsFetch<AnalyticsRecentOrdersResponse>(
+    'recent-orders',
+    params as Record<string, string | number | undefined>,
+    tokenOverride,
+  );
+}
+
+// ============================================================================
+// PHASE 15: GST BILLING & INVOICE MANAGEMENT
+// ============================================================================
+
+export interface ShopAddress {
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  stateCode: string;
+  pincode: string;
+}
+
+export interface GstSettings {
+  shopName: string;
+  legalName?: string;
+  gstin: string;
+  pan?: string;
+  phone: string;
+  email?: string;
+  address: ShopAddress;
+  defaultHsnSac: string;
+  gstRate: number;
+  isTaxInclusive: boolean;
+  invoicePrefix: string;
+  financialYear: string;
+  isConfigured: boolean;
+  termsAndConditions: string[];
+}
+
+export interface UpdateGstSettingsInput {
+  shopName: string;
+  legalName?: string;
+  gstin: string;
+  pan?: string;
+  phone: string;
+  email?: string;
+  address: ShopAddress;
+  defaultHsnSac: string;
+  gstRate: number;
+  isTaxInclusive: boolean;
+  invoicePrefix?: string;
+  financialYear?: string;
+  termsAndConditions?: string[];
+}
+
+export interface InvoiceItemSnapshot {
+  foodItemId: string;
+  nameSnapshot: string;
+  quantity: number;
+  unitPrice: number; // in paise
+  taxableAmount: number; // in paise
+  hsnSacCode: string;
+  gstRate: number;
+  cgstRate: number;
+  cgstAmount: number; // in paise
+  sgstRate: number;
+  sgstAmount: number; // in paise
+  igstRate: number;
+  igstAmount: number; // in paise
+  totalAmount: number; // in paise
+}
+
+export interface Invoice {
+  _id: string;
+  invoiceNumber: string;
+  sequence: number;
+  orderId: string;
+  orderNumber: string;
+  orderDate: string;
+  tableNumber: number;
+  shopInfo: {
+    shopName: string;
+    legalName?: string;
+    gstin: string;
+    pan?: string;
+    phone: string;
+    email?: string;
+    address: ShopAddress;
+  };
+  customerInfo?: {
+    name?: string;
+    phone?: string;
+    gstin?: string;
+    address?: string;
+    state?: string;
+    stateCode?: string;
+  };
+  supplyType: 'INTRA_STATE' | 'INTER_STATE';
+  isTaxInclusive: boolean;
+  defaultHsnSac: string;
+  items: InvoiceItemSnapshot[];
+  taxableAmount: number; // in paise
+  cgstTotal: number; // in paise
+  sgstTotal: number; // in paise
+  igstTotal: number; // in paise
+  totalGst: number; // in paise
+  rounding: number; // in paise
+  grandTotal: number; // in paise
+  paymentStatus: 'PAID' | 'UNPAID';
+  paymentMode: 'CASH' | 'UPI' | 'CARD' | 'ONLINE';
+  status: 'ISSUED' | 'CANCELLED';
+  notes?: string;
+  termsAndConditions: string[];
+  issuedAt: string;
+}
+
+export interface CreateInvoiceInput {
+  orderId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerGstin?: string;
+  customerAddress?: string;
+  customerState?: string;
+  customerStateCode?: string;
+  paymentStatus?: 'PAID' | 'UNPAID';
+  paymentMode?: 'CASH' | 'UPI' | 'CARD' | 'ONLINE';
+  notes?: string;
+}
+
+export interface InvoiceQueryParams {
+  search?: string;
+  orderId?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: 'ISSUED' | 'CANCELLED';
+  page?: number;
+  limit?: number;
+}
+
+export interface InvoiceListResponse {
+  invoices: Invoice[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export async function fetchGstSettings(tokenOverride?: string): Promise<GstSettings> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/invoices/settings`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch GST settings');
+  }
+
+  return res.json();
+}
+
+export async function updateGstSettings(
+  input: UpdateGstSettingsInput,
+  tokenOverride?: string,
+): Promise<GstSettings> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/invoices/settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to update GST settings');
+  }
+
+  return res.json();
+}
+
+export async function fetchAdminInvoices(
+  params?: InvoiceQueryParams,
+  tokenOverride?: string,
+): Promise<InvoiceListResponse> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.set('search', params.search);
+  if (params?.orderId) queryParams.set('orderId', params.orderId);
+  if (params?.startDate) queryParams.set('startDate', params.startDate);
+  if (params?.endDate) queryParams.set('endDate', params.endDate);
+  if (params?.status) queryParams.set('status', params.status);
+  if (params?.page) queryParams.set('page', String(params.page));
+  if (params?.limit) queryParams.set('limit', String(params.limit));
+
+  const url = `${getApiBaseUrl()}/admin/invoices?${queryParams.toString()}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch invoices');
+  }
+
+  return res.json();
+}
+
+export async function fetchAdminInvoiceById(
+  id: string,
+  tokenOverride?: string,
+): Promise<Invoice> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/invoices/${encodeURIComponent(id)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to fetch invoice details');
+  }
+
+  return res.json();
+}
+
+export async function fetchAdminInvoiceByOrderId(
+  orderId: string,
+  tokenOverride?: string,
+): Promise<Invoice | null> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/invoices/by-order/${encodeURIComponent(orderId)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    return null;
+  }
+
+  return res.json();
+}
+
+export async function previewAdminInvoice(
+  input: CreateInvoiceInput,
+  tokenOverride?: string,
+): Promise<any> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/invoices/preview`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to preview invoice');
+  }
+
+  return res.json();
+}
+
+export async function generateAdminInvoice(
+  input: CreateInvoiceInput,
+  tokenOverride?: string,
+): Promise<Invoice> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/invoices`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const err: any = new Error(errorData.message || 'Failed to generate invoice');
+    err.code = errorData.code;
+    err.invoiceNumber = errorData.invoiceNumber;
+    err.invoiceId = errorData.invoiceId;
+    throw err;
+  }
+
+  return res.json();
+}
+
+export async function downloadAdminInvoicePdf(
+  id: string,
+  invoiceNumber: string,
+  tokenOverride?: string,
+): Promise<void> {
+  const token = tokenOverride || getAdminToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const res = await fetch(`${getApiBaseUrl()}/admin/invoices/${encodeURIComponent(id)}/pdf`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to download invoice PDF');
+  }
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const cleanNumber = invoiceNumber.replace(/[\/\\]/g, '-');
+  a.download = `Invoice-${cleanNumber}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
 
 
 
