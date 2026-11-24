@@ -14,14 +14,95 @@ export const MAX_QR_TABLE = 100;
 export const MIN_ORDER_TABLE = 1;
 export const MAX_ORDER_TABLE = 999;
 
+export type QRBaseUrlClassification =
+  | 'public_https'
+  | 'lan_ip'
+  | 'localhost'
+  | 'invalid';
+
+/**
+ * Checks whether a given hostname is loopback / localhost.
+ */
+export function isLocalhost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '0.0.0.0' ||
+    normalized === '[::1]'
+  );
+}
+
+/**
+ * Checks whether a given hostname is an RFC 1918 private LAN IP address or mDNS .local name.
+ */
+export function isLanAddress(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+  return (
+    /^192\.168\.\d+\.\d+$/.test(normalized) ||
+    /^10\.\d+\.\d+\.\d+$/.test(normalized) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(normalized) ||
+    normalized.endsWith('.local')
+  );
+}
+
+/**
+ * Validates whether a given URL is a valid public HTTPS URL suitable for
+ * permanent restaurant table standees that work across all mobile cellular networks (4G/5G).
+ */
+export function isPublicHttpsUrl(rawUrl: string): boolean {
+  if (!rawUrl || typeof rawUrl !== 'string' || !rawUrl.trim()) {
+    return false;
+  }
+  try {
+    const url = new URL(rawUrl.trim());
+    if (url.protocol !== 'https:') return false;
+    const hostname = url.hostname.toLowerCase();
+    if (isLocalhost(hostname) || isLanAddress(hostname)) return false;
+    return hostname.includes('.');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Classifies a base URL into its operational category:
+ * - 'public_https': Ready for 4G/5G mobile customers without restaurant Wi-Fi
+ * - 'lan_ip': Local Wi-Fi testing only (requires customer to join shop Wi-Fi)
+ * - 'localhost': Development workstation only (unreachable on mobile phones)
+ * - 'invalid': Malformed or unsupported URL
+ */
+export function classifyQRBaseUrl(rawUrl: string): QRBaseUrlClassification {
+  if (!rawUrl || typeof rawUrl !== 'string' || !rawUrl.trim()) {
+    return 'invalid';
+  }
+  try {
+    const url = new URL(rawUrl.trim());
+    const hostname = url.hostname.toLowerCase();
+    if (isLocalhost(hostname)) return 'localhost';
+    if (isLanAddress(hostname)) return 'lan_ip';
+    if (url.protocol === 'https:' && hostname.includes('.')) {
+      return 'public_https';
+    }
+    if (url.protocol === 'http:') {
+      // Insecure plain HTTP over public internet
+      return 'invalid';
+    }
+    return 'invalid';
+  } catch {
+    return 'invalid';
+  }
+}
+
 /**
  * Returns the configured frontend application base URL without a trailing slash.
  * Priority:
  * 1. customUrl override (if provided)
  * 2. NEXT_PUBLIC_APP_URL environment variable (if non-localhost / production)
- * 3. window.location.origin (in browser environment, e.g. http://192.168.x.x:3000)
+ * 3. window.location.origin (if non-localhost in browser)
  * 4. NEXT_PUBLIC_APP_URL environment variable (fallback)
- * 5. 'http://localhost:3000' (default local development)
+ * 5. window.location.origin (browser fallback)
+ * 6. 'http://localhost:3000' (default local development)
  */
 export function getFrontendAppUrl(customUrl?: string): string {
   if (customUrl && typeof customUrl === 'string' && customUrl.trim()) {
@@ -40,13 +121,20 @@ export function getFrontendAppUrl(customUrl?: string): string {
     return envUrl.trim().replace(/\/+$/, '');
   }
 
-  // In browser: dynamically adopt the active origin (e.g. http://192.168.70.104:3000)
+  // In browser: if active origin is NOT localhost (e.g. public domain or LAN IP)
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin.replace(/\/+$/, '');
+    const host = window.location.hostname;
+    if (!isLocalhost(host)) {
+      return window.location.origin.replace(/\/+$/, '');
+    }
   }
 
   if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
     return envUrl.trim().replace(/\/+$/, '');
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin.replace(/\/+$/, '');
   }
 
   return 'http://localhost:3000';

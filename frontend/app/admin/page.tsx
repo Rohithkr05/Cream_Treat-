@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   adminGetProfile,
   adminLogout,
@@ -11,6 +10,7 @@ import {
   getAdminToken,
   getStoredAdminUser,
   updateAdminOrderStatus,
+  generateAdminInvoice,
 } from '@/lib/api';
 import {
   createOrderSocket,
@@ -21,6 +21,7 @@ import {
 import { AdminOrder, AdminOrdersPagination, AdminUser } from '@/types/admin';
 import { OrderStatus } from '@/types/menu';
 import { AdminLayout } from '@/components/AdminLayout';
+import { TableInvoiceModal } from '@/components/TableInvoiceModal';
 import {
   UtensilsCrossed,
   RefreshCw,
@@ -31,14 +32,13 @@ import {
   AlertCircle,
   Hash,
   Check,
+  Printer,
 } from 'lucide-react';
 
 const STATUS_FILTERS: { label: string; value: OrderStatus | 'ALL' }[] = [
   { label: 'All Orders', value: 'ALL' },
   { label: 'New', value: 'NEW' },
   { label: 'Accepted', value: 'ACCEPTED' },
-  { label: 'In Kitchen', value: 'PREPARING' },
-  { label: 'Ready', value: 'READY' },
   { label: 'Completed', value: 'COMPLETED' },
   { label: 'Cancelled', value: 'CANCELLED' },
 ];
@@ -49,7 +49,7 @@ function getStatusBadge(status: OrderStatus) {
       return {
         label: 'New Order',
         className: 'bg-[#FDF6E2] text-[#8C5D00] border-[#E8D194]',
-        dot: 'bg-[#B8860B] animate-pulse',
+        dot: 'bg-[#B8860B]',
       };
     case 'ACCEPTED':
       return {
@@ -61,7 +61,7 @@ function getStatusBadge(status: OrderStatus) {
       return {
         label: 'In Kitchen',
         className: 'bg-[#F0EFF8] text-[#4E447A] border-[#D1CEE8]',
-        dot: 'bg-[#6B5DA8] animate-pulse',
+        dot: 'bg-[#6B5DA8]',
       };
     case 'READY':
       return {
@@ -183,6 +183,10 @@ export default function AdminDashboardPage() {
     completedCount: 0,
   });
 
+  // Table Invoice Modal state
+  const [invoiceModalOrder, setInvoiceModalOrder] = useState<AdminOrder | null>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+
   const [cancelModal, setCancelModal] = useState<{
     isOpen: boolean;
     order: AdminOrder | null;
@@ -299,7 +303,11 @@ export default function AdminDashboardPage() {
   }, [isAuthChecking, loadOrdersData]);
 
   // Quick 1-Click Status Advance Handler
-  const handleQuickStatus = async (orderId: string, nextStatus: OrderStatus) => {
+  const handleQuickStatus = async (
+    orderId: string,
+    nextStatus: OrderStatus,
+    openInvoiceOnComplete = false,
+  ) => {
     try {
       setUpdatingOrderId(orderId);
       const updated = await updateAdminOrderStatus(orderId, nextStatus);
@@ -307,11 +315,34 @@ export default function AdminDashboardPage() {
         prev.map((o) => (o.id === orderId ? { ...o, status: updated.status } : o)),
       );
       loadOrdersData(false);
+
+      if (nextStatus === 'COMPLETED') {
+        const targetOrder = orders.find((o) => o.id === orderId);
+        // Automatically persist into GST Invoices & Billing history
+        generateAdminInvoice({
+          orderId,
+          customerName: `Table ${targetOrder?.tableNumber || 1} Guest`,
+        }).catch((err) => {
+          if (err?.code !== 'INVOICE_ALREADY_EXISTS') {
+            console.warn('Auto invoice recording non-blocking error:', err);
+          }
+        });
+
+        if (openInvoiceOnComplete && targetOrder) {
+          setInvoiceModalOrder({ ...targetOrder, status: 'COMPLETED' });
+          setIsInvoiceModalOpen(true);
+        }
+      }
     } catch (err) {
       console.error('Failed to advance order status', err);
     } finally {
       setUpdatingOrderId(null);
     }
+  };
+
+  const handleOpenInvoice = (order: AdminOrder) => {
+    setInvoiceModalOrder(order);
+    setIsInvoiceModalOpen(true);
   };
 
   const handleCancelClick = (order: AdminOrder) => {
@@ -471,30 +502,30 @@ export default function AdminDashboardPage() {
           <div className="bg-[#FDF6E2] border border-[#E8D194] rounded-2xl p-4 shadow-2xs">
             <div className="flex items-center justify-between text-[#8C5D00] text-xs font-bold">
               <span>New Incoming</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-[#B8860B] animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#B8860B]" />
             </div>
             <p className="font-display text-2xl font-bold text-[#8C5D00] mt-1 tabular-nums">
               {summary.newCount}
             </p>
           </div>
 
-          <div className="bg-[#EEF6EF] border border-[#BADBBE] rounded-2xl p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-[#2B6633] text-xs font-bold">
-              <span>Accepted</span>
-              <CheckCircle2 className="w-4 h-4 text-[#2B6633]" />
+          <div className="bg-[#EEF4FB] border border-[#C3D8EF] rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-[#2B5480] text-xs font-bold">
+              <span>Accepted (In Prep)</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#3B72A8]" />
             </div>
-            <p className="font-display text-2xl font-bold text-[#2B6633] mt-1 tabular-nums">
-              {summary.acceptedCount}
+            <p className="font-display text-2xl font-bold text-[#2B5480] mt-1 tabular-nums">
+              {summary.acceptedCount + summary.preparingCount + summary.readyCount}
             </p>
           </div>
 
-          <div className="bg-[#FDF0ED] border border-[#F2C2B8] rounded-2xl p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-[#9E3524] text-xs font-bold">
-              <span>Cancelled</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-[#B83E2A]" />
+          <div className="bg-[#EEF6EF] border border-[#BADBBE] rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-[#2B6633] text-xs font-bold">
+              <span>Completed</span>
+              <CheckCircle2 className="w-4 h-4 text-[#2B6633]" />
             </div>
-            <p className="font-display text-2xl font-bold text-[#9E3524] mt-1 tabular-nums">
-              {summary.cancelledCount}
+            <p className="font-display text-2xl font-bold text-[#2B6633] mt-1 tabular-nums">
+              {summary.completedCount}
             </p>
           </div>
         </div>
@@ -506,9 +537,7 @@ export default function AdminDashboardPage() {
             let filterCount = 0;
             if (filter.value === 'ALL') filterCount = summary.todayTotal;
             else if (filter.value === 'NEW') filterCount = summary.newCount;
-            else if (filter.value === 'ACCEPTED') filterCount = summary.acceptedCount;
-            else if (filter.value === 'PREPARING') filterCount = summary.preparingCount;
-            else if (filter.value === 'READY') filterCount = summary.readyCount;
+            else if (filter.value === 'ACCEPTED') filterCount = summary.acceptedCount + summary.preparingCount + summary.readyCount;
             else if (filter.value === 'COMPLETED') filterCount = summary.completedCount;
             else if (filter.value === 'CANCELLED') filterCount = summary.cancelledCount;
 
@@ -667,78 +696,60 @@ export default function AdminDashboardPage() {
                         </button>
                       )}
 
-                      {/* ACCEPTED -> Start Preparing */}
-                      {order.status === 'ACCEPTED' && (
-                        <button
-                          type="button"
-                          disabled={isUpdatingThis}
-                          onClick={() => handleQuickStatus(order.id, 'PREPARING')}
-                          className="w-full sm:w-auto min-h-[40px] px-4 py-2 bg-[#4E447A] hover:bg-[#3C3361] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          {isUpdatingThis ? (
-                            <>
-                              <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
-                              <span>Updating...</span>
-                            </>
-                          ) : (
-                            <>
-                              <ChefHat className="w-4 h-4" />
-                              <span>Send to Kitchen</span>
-                            </>
-                          )}
-                        </button>
+                      {/* ACCEPTED (or PREPARING/READY) -> 1-Click Complete & Print Bill */}
+                      {(order.status === 'ACCEPTED' ||
+                        order.status === 'PREPARING' ||
+                        order.status === 'READY') && (
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <button
+                            type="button"
+                            disabled={isUpdatingThis}
+                            onClick={() => handleQuickStatus(order.id, 'COMPLETED', true)}
+                            className="min-h-[40px] px-3 sm:px-4 py-2 bg-[#6A0019] hover:bg-[#520013] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                            title="Preparation complete: Mark order completed and print invoice"
+                          >
+                            {isUpdatingThis ? (
+                              <>
+                                <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
+                                <span>Completing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-4 h-4 stroke-[2.5]" />
+                                <span>Complete Order</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenInvoice(order)}
+                            className="px-3 py-1.5 bg-white hover:bg-[#EFE6DC]/40 border border-[#6A0019]/25 text-[#6A0019] text-xs font-semibold rounded-xl transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+                            title="Print bill for Table"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Print</span>
+                          </button>
+                        </div>
                       )}
 
-                      {/* PREPARING -> Mark Ready */}
-                      {order.status === 'PREPARING' && (
-                        <button
-                          type="button"
-                          disabled={isUpdatingThis}
-                          onClick={() => handleQuickStatus(order.id, 'READY')}
-                          className="w-full sm:w-auto min-h-[40px] px-4 py-2 bg-[#2B6633] hover:bg-[#1E4D25] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          {isUpdatingThis ? (
-                            <>
-                              <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
-                              <span>Updating...</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span>Mark Ready</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-
-                      {/* READY -> Complete Order */}
-                      {order.status === 'READY' && (
-                        <button
-                          type="button"
-                          disabled={isUpdatingThis}
-                          onClick={() => handleQuickStatus(order.id, 'COMPLETED')}
-                          className="w-full sm:w-auto min-h-[40px] px-4 py-2 bg-[#6A0019] hover:bg-[#520013] active:scale-95 text-[#EFE6DC] font-display text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          {isUpdatingThis ? (
-                            <>
-                              <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
-                              <span>Completing...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-4 h-4 stroke-[2.5]" />
-                              <span>Complete Order</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-
-                      {/* COMPLETED Badge */}
+                      {/* COMPLETED Badge + Print button */}
                       {order.status === 'COMPLETED' && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#EFE6DC]/50 text-[#6A0019] border border-[#6A0019]/20 text-xs font-bold font-body">
-                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>Completed</span>
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold font-body">
+                            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>Completed</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenInvoice(order)}
+                            className="px-3 py-1.5 bg-[#6A0019] hover:bg-[#520013] active:scale-95 text-[#EFE6DC] text-xs font-semibold rounded-xl transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+                            title="Print customer invoice for this completed order"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Print</span>
+                          </button>
+                        </div>
                       )}
 
                       {/* Cancelled Status Badge */}
@@ -754,20 +765,12 @@ export default function AdminDashboardPage() {
                           type="button"
                           disabled={isUpdatingThis}
                           onClick={() => handleCancelClick(order)}
-                          className="px-3 py-2 text-xs font-semibold text-rose-700 hover:text-rose-900 hover:bg-rose-50 border border-rose-200/80 rounded-xl transition cursor-pointer text-center whitespace-nowrap disabled:opacity-50"
+                          className="px-3 py-1.5 text-xs font-medium text-rose-700 hover:text-rose-900 hover:bg-rose-50 border border-rose-200/80 rounded-xl transition cursor-pointer text-center whitespace-nowrap disabled:opacity-50"
                           title="Cancel this order"
                         >
                           Cancel
                         </button>
                       )}
-
-                      {/* Details Link */}
-                      <Link
-                        href={`/admin/orders/${order.id}`}
-                        className="px-3 py-2 text-xs font-semibold text-[#6A0019] hover:bg-[#6A0019]/5 border border-[#6A0019]/20 rounded-xl transition cursor-pointer text-center whitespace-nowrap"
-                      >
-                        Details →
-                      </Link>
                     </div>
                   </div>
                 </div>
@@ -814,6 +817,16 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Table Dine-In Invoice / Bill Modal */}
+      <TableInvoiceModal
+        order={invoiceModalOrder}
+        isOpen={isInvoiceModalOpen}
+        onClose={() => {
+          setIsInvoiceModalOpen(false);
+          setInvoiceModalOrder(null);
+        }}
+      />
     </AdminLayout>
   );
 }

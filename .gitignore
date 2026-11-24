@@ -45,3 +45,8 @@ coverage/
 
 # Original menu source files - not required at runtime
 /menu/
+
+# Temporary runtime files
+*tunnel-url.txt
+public-qr-table-1.png
+

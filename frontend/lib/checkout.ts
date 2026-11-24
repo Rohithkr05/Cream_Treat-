@@ -24,7 +24,17 @@ export function isValidMongoObjectId(value: unknown): value is string {
 
 function isLocalHostname(hostname: string): boolean {
   const normalized = hostname.trim().toLowerCase();
-  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '[::1]';
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '[::1]';
+}
+
+export function isLanHostname(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+  return (
+    /^192\.168\.\d+\.\d+$/.test(normalized) ||
+    /^10\.\d+\.\d+\.\d+$/.test(normalized) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(normalized) ||
+    normalized.endsWith('.local')
+  );
 }
 
 function extractPort(rawUrl: string): string {
@@ -66,8 +76,13 @@ export function resolveApiBaseUrl(options: ApiUrlResolutionOptions = {}): string
       const envPointsLocal =
         trimmedEnv.includes('localhost') || trimmedEnv.includes('127.0.0.1');
       if (envPointsLocal) {
-        const port = extractPort(trimmedEnv);
-        return `${protocol}//${hostname}:${port}`;
+        if (isLanHostname(hostname)) {
+          const port = extractPort(trimmedEnv);
+          return `${protocol}//${hostname}:${port}`;
+        }
+        // Public domain / Tunnel (e.g. trycloudflare.com, ngrok, or production domain):
+        // Route through the active origin so Next.js rewrites proxy to backend!
+        return `${protocol}//${hostname}`;
       }
     }
     return trimmedEnv;
@@ -77,7 +92,10 @@ export function resolveApiBaseUrl(options: ApiUrlResolutionOptions = {}): string
     if (isLocalHostname(hostname)) {
       return 'http://localhost:3001';
     }
-    return `${protocol}//${hostname}:3001`;
+    if (isLanHostname(hostname)) {
+      return `${protocol}//${hostname}:3001`;
+    }
+    return `${protocol}//${hostname}`;
   }
 
   return 'http://localhost:3001';

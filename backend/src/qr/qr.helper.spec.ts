@@ -4,6 +4,10 @@ import {
   getAppBaseUrl,
   validateQRTable,
   validateOrderTable,
+  isPublicHttpsUrl,
+  classifyQRBaseUrl,
+  isLocalhost,
+  isLanAddress,
   MIN_QR_TABLE,
   MAX_QR_TABLE,
   MIN_ORDER_TABLE,
@@ -193,6 +197,38 @@ describe('Phase 13: QR Helper & Table URL Specifications', () => {
       const urlA = generateTableOrderUrl(42, 'https://creamtreat.com');
       const urlB = generateTableOrderUrl(42, 'https://creamtreat.com');
       expect(urlA).toBe(urlB);
+    });
+  });
+
+  describe('Public HTTPS & Cellular 4G/5G Validation', () => {
+    it('should identify public HTTPS URLs as public_https', () => {
+      expect(isPublicHttpsUrl('https://order.creamtreat.com')).toBe(true);
+      expect(isPublicHttpsUrl('https://cream-treat.vercel.app')).toBe(true);
+      expect(classifyQRBaseUrl('https://order.creamtreat.com')).toBe('public_https');
+    });
+
+    it('should identify localhost and loopback addresses as localhost', () => {
+      expect(isPublicHttpsUrl('http://localhost:3000')).toBe(false);
+      expect(isPublicHttpsUrl('http://127.0.0.1:3000')).toBe(false);
+      expect(classifyQRBaseUrl('http://localhost:3000')).toBe('localhost');
+      expect(classifyQRBaseUrl('http://127.0.0.1:3000')).toBe('localhost');
+      expect(isLocalhost('localhost')).toBe(true);
+      expect(isLocalhost('127.0.0.1')).toBe(true);
+    });
+
+    it('should identify private LAN IP addresses as lan_ip', () => {
+      expect(isPublicHttpsUrl('http://192.168.1.50:3000')).toBe(false);
+      expect(classifyQRBaseUrl('http://192.168.1.50:3000')).toBe('lan_ip');
+      expect(classifyQRBaseUrl('http://10.0.0.1:3000')).toBe('lan_ip');
+      expect(classifyQRBaseUrl('http://172.16.0.1:3000')).toBe('lan_ip');
+      expect(isLanAddress('192.168.1.50')).toBe(true);
+      expect(isLanAddress('10.0.0.1')).toBe(true);
+      expect(isLanAddress('172.16.0.1')).toBe(true);
+    });
+
+    it('should handle comma-separated FRONTEND_URL in getAppBaseUrl cleanly', () => {
+      process.env.FRONTEND_URL = 'https://order.creamtreat.com,https://admin.creamtreat.com';
+      expect(getAppBaseUrl()).toBe('https://order.creamtreat.com');
     });
   });
 });

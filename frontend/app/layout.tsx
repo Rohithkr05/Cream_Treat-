@@ -3,9 +3,9 @@ import './globals.css';
 import { CartProvider } from '@/context/CartContext';
 
 export const metadata: Metadata = {
-  title: 'Cream Treat — Artisanal Desserts & Savouries',
+  title: 'Cream Treat — Desserts & Savouries',
   description:
-    'Single-page editorial menu for Cream Treat, a boutique dessert and snack café. Fresh sundaes, chilled shakes, and warm savoury treats.',
+    'Menu and ordering for Cream Treat café. Fresh sundaes, chilled shakes, and warm savoury treats.',
   icons: {
     icon: '/images/cream-treat-logo.jpg',
     apple: '/images/cream-treat-logo.jpg',

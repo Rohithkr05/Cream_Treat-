@@ -71,23 +71,23 @@ export interface OrderStatusUpdatedCustomerPayload {
       if (!requestOrigin) return callback(null, true);
 
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      if (requestOrigin === frontendUrl) {
+      const normalizedOrigin = requestOrigin.replace(/\/+$/, '');
+      const allowedOrigins = frontendUrl
+        .split(',')
+        .map((u) => u.trim().replace(/\/+$/, ''));
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       }
 
       if (process.env.NODE_ENV !== 'production') {
-        const isLocalOrLan =
-          /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(
+        const isLocalOrLanOrTunnel =
+          /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+|[a-zA-Z0-9-]+\.trycloudflare\.com|[a-zA-Z0-9-]+\.ngrok(-free)?\.app)(:\d+)?$/.test(
             requestOrigin,
           );
-        if (isLocalOrLan) {
+        if (isLocalOrLanOrTunnel) {
           return callback(null, true);
         }
-      }
-
-      const allowedOrigins = frontendUrl.split(',').map((u) => u.trim());
-      if (allowedOrigins.includes(requestOrigin)) {
-        return callback(null, true);
       }
 
       callback(null, false);

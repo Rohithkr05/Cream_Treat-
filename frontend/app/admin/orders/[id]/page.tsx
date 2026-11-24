@@ -16,6 +16,7 @@ import {
   downloadAdminInvoicePdf,
 } from '@/lib/api';
 import { InvoiceModal } from '@/components/InvoiceModal';
+import { TableInvoiceModal } from '@/components/TableInvoiceModal';
 import { GenerateInvoiceModal } from '@/components/GenerateInvoiceModal';
 import { GstSettingsModal } from '@/components/GstSettingsModal';
 import {
@@ -147,6 +148,7 @@ function AdminOrderDetailContent() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [previewDraft, setPreviewDraft] = useState<any>(null);
+  const [isTableInvoiceOpen, setIsTableInvoiceOpen] = useState(false);
 
   const loadOrder = async (isSilent = false) => {
     const token = getAdminToken();
@@ -272,6 +274,9 @@ function AdminOrderDetailContent() {
         type: 'success',
         text: `Order status moved to ${newStatus}.`,
       });
+      if (newStatus === 'COMPLETED') {
+        setIsTableInvoiceOpen(true);
+      }
       // Clear success message after 4s
       setTimeout(() => setFeedbackMessage(null), 4000);
     } catch (err: unknown) {
@@ -479,80 +484,16 @@ function AdminOrderDetailContent() {
               </>
             )}
 
-            {order.status === 'ACCEPTED' && (
-              <>
-                <button
-                  type="button"
-                  id="action-prepare-order"
-                  disabled={isUpdating}
-                  onClick={() => handleActionClick('PREPARING')}
-                  className="flex-1 py-3 px-4 bg-[#4E447A] hover:bg-[#3C3361] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isUpdating && updatingTarget === 'PREPARING' ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
-                      <span>Sending to Kitchen...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ChefHat className="w-4 h-4" />
-                      <span>Send to Kitchen (Start Preparing)</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  id="action-cancel-order"
-                  disabled={isUpdating}
-                  onClick={() => handleActionClick('CANCELLED')}
-                  className="py-3 px-4 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2] text-[#991B1B] text-xs font-bold rounded-xl border border-[#FECACA] transition disabled:opacity-60 cursor-pointer"
-                >
-                  Cancel Order
-                </button>
-              </>
-            )}
-
-            {order.status === 'PREPARING' && (
-              <>
-                <button
-                  type="button"
-                  id="action-ready-order"
-                  disabled={isUpdating}
-                  onClick={() => handleActionClick('READY')}
-                  className="flex-1 py-3 px-4 bg-[#2B6633] hover:bg-[#1E4D25] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isUpdating && updatingTarget === 'READY' ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-[#EFE6DC] border-t-transparent rounded-full animate-spin" />
-                      <span>Marking Ready...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Mark Ready for Table</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  id="action-cancel-order"
-                  disabled={isUpdating}
-                  onClick={() => handleActionClick('CANCELLED')}
-                  className="py-3 px-4 bg-[#FEE2E2]/60 hover:bg-[#FEE2E2] text-[#991B1B] text-xs font-bold rounded-xl border border-[#FECACA] transition disabled:opacity-60 cursor-pointer"
-                >
-                  Cancel Order
-                </button>
-              </>
-            )}
-
-            {order.status === 'READY' && (
+            {(order.status === 'ACCEPTED' ||
+              order.status === 'PREPARING' ||
+              order.status === 'READY') && (
               <>
                 <button
                   type="button"
                   id="action-complete-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('COMPLETED')}
-                  className="flex-1 py-3 px-4 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 py-3 px-4 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-bold rounded-xl transition shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer font-display uppercase tracking-wider"
                 >
                   {isUpdating && updatingTarget === 'COMPLETED' ? (
                     <>
@@ -568,6 +509,15 @@ function AdminOrderDetailContent() {
                 </button>
                 <button
                   type="button"
+                  id="action-print-table-bill"
+                  onClick={() => setIsTableInvoiceOpen(true)}
+                  className="py-3 px-4 bg-white hover:bg-[#EFE6DC]/40 text-[#6A0019] text-xs font-bold rounded-xl border border-[#6A0019]/25 transition cursor-pointer flex items-center gap-1.5 font-display uppercase tracking-wider"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print Bill</span>
+                </button>
+                <button
+                  type="button"
                   id="action-cancel-order"
                   disabled={isUpdating}
                   onClick={() => handleActionClick('CANCELLED')}
@@ -579,9 +529,19 @@ function AdminOrderDetailContent() {
             )}
 
             {order.status === 'COMPLETED' && (
-              <div className="w-full p-3.5 bg-[#EFE6DC]/50 border border-[#6A0019]/20 rounded-xl text-center text-xs text-[#6A0019] font-bold flex items-center justify-center gap-2">
-                <Check className="w-4 h-4 stroke-[2.5]" />
-                <span>Order Completed & Served.</span>
+              <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="text-xs text-emerald-800 font-bold flex items-center gap-2">
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <span>Order Completed &amp; Served.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsTableInvoiceOpen(true)}
+                  className="w-full sm:w-auto py-2 px-3.5 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-bold rounded-lg transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer font-display uppercase tracking-wider"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Invoice</span>
+                </button>
               </div>
             )}
 
@@ -685,7 +645,7 @@ function AdminOrderDetailContent() {
             {invoice ? (
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   {invoice.invoiceNumber}
                 </span>
               </div>
@@ -875,6 +835,13 @@ function AdminOrderDetailContent() {
           </div>
         </div>
       )}
+
+      {/* Table Dine-In Invoice / Bill Modal */}
+      <TableInvoiceModal
+        order={order}
+        isOpen={isTableInvoiceOpen}
+        onClose={() => setIsTableInvoiceOpen(false)}
+      />
     </AdminLayout>
   );
 }

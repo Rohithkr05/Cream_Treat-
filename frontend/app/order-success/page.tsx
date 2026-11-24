@@ -358,7 +358,6 @@ function OrderSuccessContent() {
                         </div>
                       ) : isCurrent ? (
                         <div className="relative flex items-center justify-center">
-                          <span className="absolute w-7 h-7 rounded-full bg-[#6A0019]/30 animate-ping" />
                           <div className="w-7 h-7 rounded-full bg-[#6A0019] text-[#EFE6DC] flex items-center justify-center shadow-sm font-bold text-xs">
                             <span className="w-2 h-2 rounded-full bg-[#EFE6DC]" />
                           </div>

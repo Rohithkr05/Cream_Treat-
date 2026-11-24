@@ -234,42 +234,34 @@ function OrderMenuContent() {
       )}
 
       {/* ─────────────────────────────────────────────────────────────
-          2. HERO SECTION (Editorial Patisserie Header)
+          2. HERO SECTION
           ───────────────────────────────────────────────────────────── */}
-      <header className="relative overflow-hidden pt-8 pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 border-b border-[#6A0019]/15">
-        {/* Subtle Botanical Cocoa Pod Watermark */}
-        <div className="absolute -top-12 -right-16 text-[#6A0019] pointer-events-none select-none z-0">
-          <CocoaPodWatermark className="w-80 h-96 opacity-[0.05]" />
-        </div>
+      <header className="relative pt-6 pb-8 sm:pb-12 px-4 sm:px-6 lg:px-8 border-b border-[#6A0019]/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
+            <div className="lg:col-span-7 space-y-3 sm:space-y-4">
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#6A0019]/10 text-[#6A0019]">
+                Dine-In Menu
+              </span>
 
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            <div className="lg:col-span-7 space-y-4 sm:space-y-6">
-              <p className="font-display text-xs sm:text-sm uppercase tracking-[0.3em] font-semibold text-[#6A0019]/80">
-                Editorial Patisserie & Café Menu
-              </p>
-
-              <h1 className="font-display text-5xl sm:text-7xl lg:text-8xl font-extrabold tracking-tight text-[#6A0019] leading-[0.95]">
-                Cream <br className="hidden sm:inline" />
-                Treat.
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#6A0019] leading-tight">
+                Cream Treat
               </h1>
 
-              <p className="text-sm sm:text-base text-[#6A0019]/85 max-w-lg leading-relaxed font-normal">
-                Indulgent sundaes, chilled bubble milk, and warm savoury comfort
-                prepared with boutique craftsmanship. Select any item to add to
-                your dine-in order.
+              <p className="text-sm sm:text-base text-[#2C1810]/75 max-w-lg leading-relaxed font-body">
+                Browse our fresh desserts, beverages, sandwiches, and savouries. Add items to your cart and place your order directly from your table.
               </p>
 
               {/* Search Bar within reach */}
-              <div className="pt-2 max-w-md">
+              <div className="pt-1 max-w-md">
                 <div className="relative">
                   <Search className="w-4 h-4 text-[#6A0019]/50 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search sundaes, shakes, burgers, maggi..."
-                    className="w-full pl-10 pr-10 py-2.5 bg-white text-sm text-[#6A0019] placeholder:text-[#6A0019]/40 rounded-full border border-[#6A0019]/30 focus:outline-none focus:ring-2 focus:ring-[#6A0019] shadow-2xs font-body"
+                    placeholder="Search desserts, shakes, burgers, maggi..."
+                    className="w-full pl-10 pr-10 py-2.5 bg-white text-sm text-[#2C1810] placeholder:text-[#2C1810]/40 rounded-xl border border-[#6A0019]/20 focus:outline-none focus:ring-2 focus:ring-[#6A0019] shadow-2xs font-body"
                   />
                   {searchQuery && (
                     <button
@@ -284,9 +276,9 @@ function OrderMenuContent() {
               </div>
             </div>
 
-            {/* Featured Hero Dessert Showcase */}
+            {/* Featured Showcase */}
             <div className="lg:col-span-5">
-              <figure className="relative rounded-2xl overflow-hidden border border-[#6A0019]/20 bg-[#EFE6DC]/40 p-3 shadow-xs">
+              <figure className="relative rounded-2xl overflow-hidden border border-[#6A0019]/15 bg-white p-3 shadow-xs">
                 <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-black/5">
                   <Image
                     src="/images/chocolava-cake-sundae.jpg"
@@ -296,8 +288,8 @@ function OrderMenuContent() {
                     className="object-cover"
                     priority
                   />
-                  <div className="absolute top-3 left-3 bg-[#6A0019] text-[#EFE6DC] text-[10px] uppercase font-bold tracking-[0.2em] px-2.5 py-1 rounded-sm shadow-xs">
-                    Signature
+                  <div className="absolute top-3 left-3 bg-[#6A0019] text-[#EFE6DC] text-[10px] uppercase font-bold tracking-[0.16em] px-2.5 py-1 rounded-sm shadow-xs">
+                    Popular
                   </div>
                 </div>
                 <figcaption className="mt-3 px-1 flex items-baseline justify-between text-[#6A0019]">
@@ -305,8 +297,8 @@ function OrderMenuContent() {
                     <span className="font-display font-semibold text-sm sm:text-base tracking-tight block">
                       Chocolava cake sundae
                     </span>
-                    <span className="text-xs opacity-75 font-body">
-                      Sweet Tooth Collection
+                    <span className="text-xs text-[#2C1810]/60 font-body">
+                      Signature Sundae
                     </span>
                   </div>
                   <span className="font-body text-base font-bold tabular-nums">
@@ -429,21 +421,8 @@ function OrderMenuContent() {
               <section
                 key={section.id}
                 id={section.id}
-                className={`relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8 ${sectionBg} ${textColor} transition-colors duration-500`}
+                className={`relative py-12 sm:py-16 px-4 sm:px-6 lg:px-8 ${sectionBg} ${textColor} border-b border-[#6A0019]/10`}
               >
-                {/* Botanical Watermark on select sections */}
-                {(section.id === 'mains' || section.id === 'mojito') && (
-                  <div
-                    className={`absolute ${
-                      section.id === 'mains'
-                        ? 'bottom-8 right-6 text-[#6A0019]'
-                        : 'top-8 left-6 text-[#EFE6DC]'
-                    } pointer-events-none select-none z-0`}
-                  >
-                    <CocoaPodWatermark className="w-96 h-96 opacity-[0.05]" />
-                  </div>
-                )}
-
                 <div className="max-w-6xl mx-auto relative z-10">
                   {/* Section Header */}
                   <div className="mb-10 sm:mb-14">
@@ -492,7 +471,7 @@ function OrderMenuContent() {
                             <span
                               className={`text-[11px] font-mono opacity-50 ${textColor}`}
                             >
-                              {section.featuredDishes.length} captured
+                              {section.featuredDishes.length} items
                             </span>
                           </div>
 
@@ -543,7 +522,7 @@ function OrderMenuContent() {
                             }`}
                           >
                             <p className="font-display italic text-sm tracking-wide text-center">
-                              ✦ {section.note}
+                              Note: {section.note}
                             </p>
                           </div>
                         )}
@@ -561,17 +540,17 @@ function OrderMenuContent() {
           ───────────────────────────────────────────────────────────── */}
       <footer
         id="footer-info"
-        className="bg-[#520013] text-[#EFE6DC] pt-16 pb-28 px-4 sm:px-6 lg:px-8 border-t border-[#EFE6DC]/20 relative overflow-hidden"
+        className="bg-[#520013] text-[#EFE6DC] pt-12 sm:pt-14 pb-28 px-4 sm:px-6 lg:px-8 border-t border-[#EFE6DC]/20 relative overflow-hidden"
       >
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="mb-14 py-4 px-6 rounded-2xl border border-[#EFE6DC]/25 bg-[#6A0019] text-center">
-            <p className="font-display text-sm sm:text-base tracking-wide font-medium">
-              ✦ Note: Fresh fruit juice available as per season.
+          <div className="mb-10 py-3 px-5 rounded-xl border border-[#EFE6DC]/20 bg-[#6A0019]/60 text-center max-w-2xl mx-auto">
+            <p className="font-display text-xs sm:text-sm tracking-wide font-medium text-[#EFE6DC]/90">
+              Note: Fresh fruit juices are available based on seasonal availability.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-12 pb-14 border-b border-[#EFE6DC]/15">
-            <div className="md:col-span-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 pb-10 border-b border-[#EFE6DC]/15">
+            <div className="md:col-span-5 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="relative w-10 h-10 rounded-full overflow-hidden border border-[#EFE6DC]/30 p-0.5 bg-[#EFE6DC] shrink-0">
                   <Image
@@ -582,29 +561,22 @@ function OrderMenuContent() {
                     className="object-cover rounded-full"
                   />
                 </div>
-                <span className="font-display font-bold text-xl tracking-wider text-[#EFE6DC] uppercase">
-                  Cream Treat
-                </span>
+                <div>
+                  <span className="font-display font-bold text-xl tracking-wider text-[#EFE6DC] uppercase block leading-none">
+                    Cream Treat
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-[#EFE6DC]/70 font-semibold mt-1 block">
+                    Desserts &amp; Savouries
+                  </span>
+                </div>
               </div>
-              <p className="text-xs sm:text-sm text-[#EFE6DC]/80 leading-relaxed max-w-sm">
+              <p className="text-xs text-[#EFE6DC]/80 leading-relaxed max-w-sm pt-1">
                 A modern boutique dessert and snack café. From handcrafted
-                faloodas and layered sundaes to toasted sandwiches and cheesy
-                comfort snacks.
+                faloodas and layered sundaes to toasted sandwiches and comfort snacks.
               </p>
-              <div className="pt-2">
-                <a
-                  href="https://wa.me/918904922648"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#EFE6DC] text-[#6A0019] font-display text-xs uppercase tracking-[0.18em] font-bold hover:bg-white transition-colors shadow-xs"
-                >
-                  <span>Order on WhatsApp</span>
-                  <span aria-hidden="true">→</span>
-                </a>
-              </div>
             </div>
 
-            <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-8">
+            <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
               <div className="space-y-2">
                 <h4 className="font-display text-xs uppercase tracking-[0.2em] font-bold text-[#EFE6DC]">
                   Address
@@ -628,7 +600,7 @@ function OrderMenuContent() {
                 <div className="text-xs text-[#EFE6DC]/80 leading-relaxed font-sans space-y-1">
                   <p className="font-medium text-[#EFE6DC]">Monday – Sunday</p>
                   <p className="font-mono text-sm text-[#EFE6DC] font-semibold">11:30 AM – 11:00 PM</p>
-                  <p className="text-[11px] text-[#EFE6DC]/60 pt-0.5">Dine-in & Takeaway</p>
+                  <p className="text-[11px] text-[#EFE6DC]/60 pt-0.5">Dine-in &amp; Takeaway</p>
                 </div>
               </div>
 
@@ -654,7 +626,7 @@ function OrderMenuContent() {
                       rel="noopener noreferrer"
                       className="font-mono font-medium hover:underline text-[#EFE6DC]"
                     >
-                      8904922648
+                      +91 89049 22648
                     </a>
                   </p>
                   <p>
@@ -666,9 +638,9 @@ function OrderMenuContent() {
             </div>
           </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-mono text-[#EFE6DC]/60">
+          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-[#EFE6DC]/60">
             <span>© 2026 Cream Treat (@CREAM TREATS / Kokila Gayathri B K). All rights reserved.</span>
-            <span>Editorial Patisserie & Snack Menu</span>
+            <span>Desserts &amp; Savouries</span>
           </div>
         </div>
       </footer>

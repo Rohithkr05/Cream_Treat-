@@ -862,24 +862,38 @@ describe('OrdersService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('12. should reject invalid transition ACCEPTED -> COMPLETED with 409', async () => {
+    it('12. should allow transition ACCEPTED -> COMPLETED', async () => {
+      const initial = createMockOrderDoc(OrderStatus.ACCEPTED);
+      const updated = { ...initial, status: OrderStatus.COMPLETED };
       mockOrderModel.findById.mockReturnValue({
-        exec: vi.fn().mockResolvedValue(createMockOrderDoc(OrderStatus.ACCEPTED)),
+        exec: vi.fn().mockResolvedValue(initial),
+      });
+      mockOrderModel.findOneAndUpdate.mockReturnValue({
+        exec: vi.fn().mockResolvedValue(updated),
       });
 
-      await expect(
-        ordersService.updateOrderStatus(orderId.toString(), OrderStatus.COMPLETED),
-      ).rejects.toThrow(ConflictException);
+      const res = await ordersService.updateOrderStatus(
+        orderId.toString(),
+        OrderStatus.COMPLETED,
+      );
+      expect(res.status).toBe(OrderStatus.COMPLETED);
     });
 
-    it('13. should reject invalid transition PREPARING -> COMPLETED with 409', async () => {
+    it('13. should allow transition PREPARING -> COMPLETED', async () => {
+      const initial = createMockOrderDoc(OrderStatus.PREPARING);
+      const updated = { ...initial, status: OrderStatus.COMPLETED };
       mockOrderModel.findById.mockReturnValue({
-        exec: vi.fn().mockResolvedValue(createMockOrderDoc(OrderStatus.PREPARING)),
+        exec: vi.fn().mockResolvedValue(initial),
+      });
+      mockOrderModel.findOneAndUpdate.mockReturnValue({
+        exec: vi.fn().mockResolvedValue(updated),
       });
 
-      await expect(
-        ordersService.updateOrderStatus(orderId.toString(), OrderStatus.COMPLETED),
-      ).rejects.toThrow(ConflictException);
+      const res = await ordersService.updateOrderStatus(
+        orderId.toString(),
+        OrderStatus.COMPLETED,
+      );
+      expect(res.status).toBe(OrderStatus.COMPLETED);
     });
 
     it('14. should reject backward transition READY -> PREPARING with 409', async () => {

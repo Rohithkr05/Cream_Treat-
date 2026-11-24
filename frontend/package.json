@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0",
+    "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint",
-    "test": "node --test lib/qr.test.ts lib/analytics-utils.test.ts lib/checkout.test.ts lib/menu.test.ts lib/invoices.test.ts"
+    "test": "node --test lib/qr.test.ts lib/analytics-utils.test.ts lib/checkout.test.ts lib/menu.test.ts lib/invoices.test.ts lib/google-reviews.test.ts"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",

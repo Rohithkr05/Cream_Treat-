@@ -118,6 +118,25 @@ export async function fetchCategories(): Promise<Category[]> {
   return res.json();
 }
 
+export interface BackendHealthResponse {
+  status: 'ok' | 'error';
+  service: string;
+  database: 'connected' | 'disconnected';
+  timestamp: string;
+}
+
+/**
+ * Checks backend connectivity and MongoDB status without exposing sensitive credentials.
+ */
+export async function fetchBackendHealth(): Promise<BackendHealthResponse> {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}/health`, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`Backend returned HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function fetchFoodItems(
   categoryId?: string,
 ): Promise<FoodItem[]> {

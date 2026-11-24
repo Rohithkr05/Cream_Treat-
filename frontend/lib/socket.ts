@@ -50,22 +50,32 @@ export type SocketConnectionState =
  * respects NEXT_PUBLIC_SOCKET_URL in production, and falls back to localhost:3001.
  */
 export function getSocketServerUrl(): string {
+  const envSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+  if (
+    envSocketUrl &&
+    typeof envSocketUrl === 'string' &&
+    envSocketUrl.trim() &&
+    !envSocketUrl.includes('localhost') &&
+    !envSocketUrl.includes('127.0.0.1')
+  ) {
+    return envSocketUrl.trim().replace(/\/+$/, '');
+  }
+
   if (typeof window !== 'undefined' && window.location?.hostname) {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://localhost:3001';
     }
-    const envSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
-    if (
-      envSocketUrl &&
-      typeof envSocketUrl === 'string' &&
-      !envSocketUrl.includes('localhost') &&
-      !envSocketUrl.includes('127.0.0.1')
-    ) {
-      return envSocketUrl.trim().replace(/\/+$/, '');
+    const isLan =
+      /^192\.168\.\d+\.\d+$/.test(hostname) ||
+      /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+$/.test(hostname) ||
+      hostname.endsWith('.local');
+    if (isLan) {
+      const protocol = window.location.protocol;
+      return `${protocol}//${hostname}:3001`;
     }
-    const protocol = window.location.protocol;
-    return `${protocol}//${hostname}:3001`;
+    return window.location.origin.replace(/\/+$/, '');
   }
 
   return (

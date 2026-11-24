@@ -9,6 +9,9 @@ import {
   RefreshCw,
   QrCode,
   Info,
+  ShieldCheck,
+  Wifi,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   adminGetProfile,
@@ -18,7 +21,11 @@ import {
 } from '@/lib/api';
 import { AdminUser } from '@/types/admin';
 import { TableQRCard } from '@/components/TableQRCard';
-import { getFrontendAppUrl, validateQRTableCount } from '@/lib/qr';
+import {
+  getFrontendAppUrl,
+  validateQRTableCount,
+  classifyQRBaseUrl,
+} from '@/lib/qr';
 import { AdminLayout } from '@/components/AdminLayout';
 
 export default function AdminQRManagementPage() {
@@ -32,13 +39,54 @@ export default function AdminQRManagementPage() {
   const [activeTableCount, setActiveTableCount] = useState(10);
   const [baseUrlInput, setBaseUrlInput] = useState('');
   const [activeBaseUrl, setActiveBaseUrl] = useState('');
+  const [detectedLanUrl, setDetectedLanUrl] = useState<string | null>(null);
+  const [detectedTunnelUrl, setDetectedTunnelUrl] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
 
-  // Initialize Base URL on client mount
+  // Initialize Base URL on client mount and auto-detect Wi-Fi LAN IP or Public Tunnel
   useEffect(() => {
+    let isMounted = true;
     const defaultUrl = getFrontendAppUrl();
     setBaseUrlInput(defaultUrl);
     setActiveBaseUrl(defaultUrl);
+
+    async function detectLan() {
+      try {
+        const res = await fetch(`/api/lan-ip?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!isMounted) return;
+
+        if (data?.tunnelUrl) {
+          setDetectedTunnelUrl(data.tunnelUrl);
+        }
+        if (data?.frontendLanUrl) {
+          setDetectedLanUrl(data.frontendLanUrl);
+        }
+
+        // Priority for mobile scanning:
+        // 1. If public HTTPS tunnel is running, auto-apply it so QR cards work on all 4G/5G mobile phones!
+        // 2. Otherwise if on localhost, apply LAN Wi-Fi IP
+        if (data?.tunnelUrl) {
+          setBaseUrlInput(data.tunnelUrl);
+          setActiveBaseUrl(data.tunnelUrl);
+        } else if (
+          data?.frontendLanUrl &&
+          (defaultUrl.includes('localhost') || defaultUrl.includes('127.0.0.1'))
+        ) {
+          setBaseUrlInput(data.frontendLanUrl);
+          setActiveBaseUrl(data.frontendLanUrl);
+        }
+      } catch {
+        // Fallback to defaultUrl
+      }
+    }
+
+    detectLan();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Verify Admin Session on Mount
@@ -103,6 +151,13 @@ export default function AdminQRManagementPage() {
   };
 
   const handlePrint = () => {
+    const classification = classifyQRBaseUrl(activeBaseUrl);
+    if (classification === 'localhost') {
+      const confirmPrint = window.confirm(
+        'Warning: Standees currently encode "localhost", which will fail on customer mobile phones with ERR_CONNECTION_REFUSED.\n\nAre you sure you want to print now?',
+      );
+      if (!confirmPrint) return;
+    }
     window.print();
   };
 
@@ -124,8 +179,7 @@ export default function AdminQRManagementPage() {
     (_, i) => i + 1,
   );
 
-  const isLocalhostUrl =
-    baseUrlInput.includes('localhost') || baseUrlInput.includes('127.0.0.1');
+  const urlClassification = classifyQRBaseUrl(activeBaseUrl);
 
   return (
     <AdminLayout
@@ -199,9 +253,49 @@ export default function AdminQRManagementPage() {
                 type="text"
                 value={baseUrlInput}
                 onChange={(e) => setBaseUrlInput(e.target.value)}
-                placeholder="http://192.168.70.110:3000"
+                placeholder="http://192.168.70.113:3000"
                 className="w-full px-3.5 py-2.5 bg-[#FBF7F2] border border-[#6A0019]/20 rounded-xl text-xs font-mono text-[#2C1810] focus:outline-none focus:ring-2 focus:ring-[#6A0019] focus:bg-white"
               />
+              <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[11px]">
+                {detectedTunnelUrl && baseUrlInput !== detectedTunnelUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBaseUrlInput(detectedTunnelUrl);
+                      setActiveBaseUrl(detectedTunnelUrl);
+                    }}
+                    className="inline-flex items-center gap-1 text-teal-800 hover:text-teal-950 font-bold hover:underline cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Use Public 4G/5G Tunnel ({detectedTunnelUrl})</span>
+                  </button>
+                )}
+                {detectedLanUrl && baseUrlInput !== detectedLanUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBaseUrlInput(detectedLanUrl);
+                      setActiveBaseUrl(detectedLanUrl);
+                    }}
+                    className="inline-flex items-center gap-1 text-emerald-800 hover:text-emerald-950 font-bold hover:underline cursor-pointer"
+                  >
+                    <Wifi className="w-3 h-3 text-emerald-600" />
+                    <span>Use Detected Wi-Fi IP ({detectedLanUrl})</span>
+                  </button>
+                )}
+                {!baseUrlInput.includes('localhost') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBaseUrlInput('http://localhost:3000');
+                      setActiveBaseUrl('http://localhost:3000');
+                    }}
+                    className="text-[#2C1810]/60 hover:text-[#2C1810] hover:underline cursor-pointer"
+                  >
+                    Use Localhost
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Submit Button */}
@@ -223,14 +317,87 @@ export default function AdminQRManagementPage() {
             </div>
           )}
 
-          {isLocalhostUrl && (
-            <div className="p-3 bg-[#FDF6E2] border border-[#E8D194] text-[#8C5D00] text-xs rounded-xl flex items-start gap-2.5 font-body">
-              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+          {/* Real-time Network Readiness Indicator */}
+          {urlClassification === 'lan_ip' && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs rounded-xl flex items-start gap-3 font-body">
+              <Wifi className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Phone Testing Tip: </span>
-                <span>
-                  Scanning a QR with <code className="font-mono bg-white/60 px-1 py-0.5 rounded">localhost</code> from your phone won't connect. For phone cameras, use your Wi-Fi LAN IP (e.g. <code className="font-mono bg-white/60 px-1 py-0.5 rounded">http://192.168.70.110:3000</code>).
+                <div className="flex items-center gap-2">
+                  <span className="font-bold font-display uppercase tracking-wider text-emerald-900">
+                    Same-Wi-Fi Mobile Ready (LAN IP Active)
+                  </span>
+                  <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Wi-Fi Ready
+                  </span>
+                </div>
+                <p className="mt-0.5 text-emerald-800 leading-relaxed">
+                  These standees encode your laptop&apos;s local network address (<code className="font-mono bg-emerald-100/80 px-1 py-0.5 rounded text-emerald-900 font-bold">{activeBaseUrl}</code>). Any mobile phone connected to the <strong>same Wi-Fi network</strong> can point its camera, open the menu, and place orders directly to this laptop without needing internet hosting.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {urlClassification === 'public_https' && (
+            <div className="p-3.5 bg-teal-50 border border-teal-300 text-teal-950 text-xs rounded-xl flex items-start gap-3 font-body">
+              <ShieldCheck className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold font-display uppercase tracking-wider text-teal-900">
+                    Public 4G/5G Ready (HTTPS Verified)
+                  </span>
+                  <span className="bg-teal-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Production Safe
+                  </span>
+                </div>
+                <p className="mt-0.5 text-teal-800 leading-relaxed">
+                  These standees encode a valid public HTTPS address (<code className="font-mono bg-teal-100/70 px-1 py-0.5 rounded text-teal-900 font-bold">{activeBaseUrl}</code>). Customers can scan and order on <strong>4G, 5G cellular data</strong> or any external Wi-Fi without restaurant Wi-Fi.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {urlClassification === 'localhost' && (
+            <div className="p-3.5 bg-rose-50 border border-rose-300 text-rose-950 text-xs rounded-xl flex items-start gap-3 font-body">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold font-display uppercase tracking-wider text-rose-900">
+                    Localhost Selected — Unreachable on Mobile Phones
+                  </span>
+                  <span className="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Cannot Scan From Phone
+                  </span>
+                </div>
+                <p className="mt-0.5 text-rose-800 leading-relaxed">
+                  Scanning a QR with <code className="font-mono bg-rose-100 px-1 py-0.5 rounded text-rose-900 font-bold">localhost</code> from your phone will fail with <strong>ERR_CONNECTION_REFUSED</strong> because &quot;localhost&quot; resolves to the phone itself.
+                </p>
+                {detectedLanUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBaseUrlInput(detectedLanUrl);
+                      setActiveBaseUrl(detectedLanUrl);
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#6A0019] hover:bg-[#520013] text-[#EFE6DC] text-xs font-display font-bold uppercase tracking-wider rounded-lg transition shadow-2xs cursor-pointer"
+                  >
+                    <Wifi className="w-3.5 h-3.5" />
+                    <span>Switch to Wi-Fi IP ({detectedLanUrl})</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {urlClassification === 'invalid' && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl flex items-start gap-3 font-body">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold font-display uppercase tracking-wider text-rose-800">
+                  Invalid Base URL Format
                 </span>
+                <p className="mt-0.5 text-rose-700/90 leading-relaxed">
+                  Please enter a valid URL scheme (e.g. <code className="font-mono bg-rose-100 px-1 py-0.5 rounded text-rose-900">https://your-domain.com</code> for 4G/5G mobile access, or <code className="font-mono bg-rose-100 px-1 py-0.5 rounded text-rose-900">http://192.168.1.100:3000</code> for shop Wi-Fi testing).
+                </p>
               </div>
             </div>
           )}

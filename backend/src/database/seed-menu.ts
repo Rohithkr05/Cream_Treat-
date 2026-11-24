@@ -240,7 +240,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Toasted sandwich layered with seasoned vegetables',
         displayOrder: 1,
         isAvailable: true,
-        imageUrl: '/menu/veg-grilled-sandwich.jpg',
+        imageUrl: '/menu/veg-grilled-sandwich-v2.jpg',
       },
       {
         name: 'Chocolate Sandwich',
@@ -256,7 +256,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Spicy green chillies and melted cheese grilled to golden perfection',
         displayOrder: 3,
         isAvailable: true,
-        imageUrl: '/menu/chilli-cheese-sandwich.jpg',
+        imageUrl: '/menu/chilli-cheese-sandwich-v2.jpg',
       },
       {
         name: 'Corn Cheese Sandwich',
@@ -264,7 +264,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Sweet corn kernels paired with creamy melted cheese',
         displayOrder: 4,
         isAvailable: true,
-        imageUrl: '/menu/corn-cheese-sandwich.jpg',
+        imageUrl: '/menu/corn-cheese-sandwich-v2.jpg',
       },
       {
         name: 'Pizza Sandwich',
@@ -272,7 +272,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Italian herb seasoned pizza sauce, veggies, and mozzarella grilled toast',
         displayOrder: 5,
         isAvailable: true,
-        imageUrl: '/menu/pizza-sandwich.jpg',
+        imageUrl: '/menu/pizza-sandwich-v2.jpg',
       },
       {
         name: 'Paneer Grilled Sandwich',
@@ -354,7 +354,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Authentic street-style seasoned vegetable spice noodles',
         displayOrder: 5,
         isAvailable: true,
-        imageUrl: '/menu/masala-maggi.jpg',
+        imageUrl: '/menu/masala-maggi-v2.jpg',
       },
       {
         name: 'Chilli Oil Maggie',
@@ -370,7 +370,7 @@ export const REAL_CREAM_TREAT_MENU = [
         description: 'Fresh crunchy vegetables cooked with aromatic noodle spices',
         displayOrder: 7,
         isAvailable: true,
-        imageUrl: '/menu/veg-maggi.jpg',
+        imageUrl: '/menu/veg-maggi-v2.jpg',
       },
       {
         name: 'Lemon Coriander Maggie',

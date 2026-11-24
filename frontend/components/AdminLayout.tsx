@@ -12,12 +12,14 @@ import {
   LogOut,
   RefreshCw,
   ExternalLink,
+  Activity,
+  Star,
 } from 'lucide-react';
 import { AdminUser } from '@/types/admin';
 import { SocketConnectionState } from '@/lib/socket';
 
 interface AdminLayoutProps {
-  activeNav: 'orders' | 'invoices' | 'analytics' | 'menu' | 'qr';
+  activeNav: 'orders' | 'invoices' | 'analytics' | 'menu' | 'qr' | 'diagnostics' | 'reviews';
   title: string;
   subtitle: string;
   headerActions?: React.ReactNode;
@@ -36,6 +38,10 @@ const NAV_ITEMS = [
   { id: 'analytics', label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { id: 'menu', label: 'Menu & Prices', href: '/admin/menu', icon: BookOpen },
   { id: 'qr', label: 'Table QRs', href: '/admin/qr', icon: QrCode },
+  { id: 'reviews', label: 'Google Reviews', href: '/admin/reviews', icon: Star },
+  ...(process.env.NODE_ENV !== 'production'
+    ? [{ id: 'diagnostics', label: 'LAN Diagnostics', href: '/admin/diagnostics', icon: Activity }]
+    : []),
 ] as const;
 
 export function AdminLayout({
@@ -56,7 +62,7 @@ export function AdminLayout({
       {/* ─────────────────────────────────────────────────────────────
           1. DESKTOP SLIM LEFT SIDEBAR
           ───────────────────────────────────────────────────────────── */}
-      <aside className="hidden md:flex flex-col justify-between w-60 fixed inset-y-0 left-0 bg-[#EFE6DC]/40 border-r border-[#6A0019]/15 z-30">
+      <aside className="hidden md:flex flex-col justify-between w-60 fixed inset-y-0 left-0 bg-[#EFE6DC]/40 border-r border-[#6A0019]/15 z-30 print:hidden">
         <div>
           {/* Brand Masthead */}
           <div className="p-4 border-b border-[#6A0019]/15">
@@ -120,8 +126,8 @@ export function AdminLayout({
               <span
                 className={`w-2 h-2 rounded-full shrink-0 ${
                   socketStatus === 'connected'
-                    ? 'bg-emerald-600 animate-pulse'
-                    : 'bg-amber-500 animate-ping'
+                    ? 'bg-emerald-600'
+                    : 'bg-amber-500'
                 }`}
               />
               <span className="truncate">
@@ -167,7 +173,7 @@ export function AdminLayout({
       {/* ─────────────────────────────────────────────────────────────
           2. MOBILE TOP BAR
           ───────────────────────────────────────────────────────────── */}
-      <header className="md:hidden sticky top-0 z-30 bg-[#FBF7F2]/95 backdrop-blur-md border-b border-[#6A0019]/15 px-4 py-3 flex items-center justify-between">
+      <header className="md:hidden sticky top-0 z-30 bg-[#FBF7F2]/95 backdrop-blur-md border-b border-[#6A0019]/15 px-4 py-3 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-2.5">
           <div className="relative w-8 h-8 rounded-full overflow-hidden border border-[#6A0019]/30 p-0.5 bg-[#EFE6DC] shrink-0">
             <Image
@@ -218,10 +224,10 @@ export function AdminLayout({
       {/* ─────────────────────────────────────────────────────────────
           3. MAIN CONTENT CONTAINER (PADDED ON DESKTOP, FITS 100% SCREEN)
           ───────────────────────────────────────────────────────────── */}
-      <div className="md:pl-60 flex flex-col min-w-0 w-full">
-        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 md:pb-12 min-w-0">
+      <div className="md:pl-60 flex flex-col min-w-0 w-full print:pl-0 print:m-0 print:w-full">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 md:pb-12 min-w-0 print:p-0 print:m-0 print:max-w-none">
           {/* Page Heading and Actions Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 mb-6 border-b border-[#6A0019]/15">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 mb-6 border-b border-[#6A0019]/15 print:hidden">
             <div>
               <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#6A0019]">
                 {title}
@@ -247,7 +253,7 @@ export function AdminLayout({
           4. MOBILE BOTTOM TAB BAR
           ───────────────────────────────────────────────────────────── */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#FBF7F2]/95 backdrop-blur-md border-t border-[#6A0019]/15 py-1 px-2 flex justify-around items-center gap-1"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#FBF7F2]/95 backdrop-blur-md border-t border-[#6A0019]/15 py-1 px-2 flex justify-around items-center gap-1 print:hidden"
         aria-label="Mobile Bottom Navigation"
       >
         {NAV_ITEMS.map((item) => {

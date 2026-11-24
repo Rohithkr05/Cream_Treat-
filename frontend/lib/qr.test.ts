@@ -6,6 +6,10 @@ import {
   validateQRTableCount,
   validateCustomerTableNumber,
   parseTableUrlParam,
+  isPublicHttpsUrl,
+  classifyQRBaseUrl,
+  isLocalhost,
+  isLanAddress,
   MIN_QR_TABLE,
   MAX_QR_TABLE,
   MIN_ORDER_TABLE,
@@ -108,5 +112,35 @@ describe('Frontend QR & Table URL Validation (Phase 13)', () => {
     assert.equal(validateCustomerTableNumber(500).isValid, true);
     assert.equal(validateCustomerTableNumber(999).isValid, true);
     assert.equal(validateCustomerTableNumber(1000).isValid, false);
+  });
+
+  it('13. Public HTTPS & Cellular 4G/5G URL Classification', () => {
+    // Valid public HTTPS URLs
+    assert.equal(isPublicHttpsUrl('https://order.creamtreat.com'), true);
+    assert.equal(isPublicHttpsUrl('https://cream-treat.vercel.app'), true);
+    assert.equal(classifyQRBaseUrl('https://order.creamtreat.com'), 'public_https');
+    assert.equal(classifyQRBaseUrl('https://my-cafe.in'), 'public_https');
+
+    // Localhost / Loopback
+    assert.equal(isPublicHttpsUrl('http://localhost:3000'), false);
+    assert.equal(isPublicHttpsUrl('https://localhost:3000'), false);
+    assert.equal(classifyQRBaseUrl('http://localhost:3000'), 'localhost');
+    assert.equal(classifyQRBaseUrl('http://127.0.0.1:3000'), 'localhost');
+    assert.equal(isLocalhost('localhost'), true);
+    assert.equal(isLocalhost('127.0.0.1'), true);
+
+    // Private LAN IPs (Shop Wi-Fi only)
+    assert.equal(isPublicHttpsUrl('http://192.168.1.100:3000'), false);
+    assert.equal(classifyQRBaseUrl('http://192.168.1.100:3000'), 'lan_ip');
+    assert.equal(classifyQRBaseUrl('http://10.0.0.5:3000'), 'lan_ip');
+    assert.equal(classifyQRBaseUrl('http://172.20.10.2:3000'), 'lan_ip');
+    assert.equal(isLanAddress('192.168.1.100'), true);
+    assert.equal(isLanAddress('10.0.0.5'), true);
+    assert.equal(isLanAddress('172.20.10.2'), true);
+
+    // Insecure HTTP or invalid
+    assert.equal(classifyQRBaseUrl('http://insecure-domain.com'), 'invalid');
+    assert.equal(classifyQRBaseUrl('not-a-url'), 'invalid');
+    assert.equal(classifyQRBaseUrl(''), 'invalid');
   });
 });

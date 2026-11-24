@@ -40,7 +40,7 @@ export const MENU_SECTIONS: MenuSectionData[] = [
   {
     id: 'sundae',
     title: 'Sundae',
-    tagline: 'Sweet Tooth',
+    tagline: 'Desserts & Faloodas',
     theme: 'light',
     imagePlacement: 'left',
     photos: [
@@ -114,8 +114,8 @@ export const MENU_SECTIONS: MenuSectionData[] = [
   {
     id: 'milkshake',
     title: 'Milkshake',
-    tagline: 'Madness',
-    theme: 'dark',
+    tagline: 'Beverages & Shakes',
+    theme: 'light',
     imagePlacement: 'right',
     photos: [
       {
@@ -179,14 +179,14 @@ export const MENU_SECTIONS: MenuSectionData[] = [
   {
     id: 'mains',
     title: 'Mains',
-    tagline: 'Mustly',
+    tagline: 'Burgers & Sandwiches',
     theme: 'light',
     imagePlacement: 'left',
     photos: [
       {
         name: 'Veg grilled sandwich',
         price: 95,
-        image: '/images/veg-grilled-sandwich.jpg',
+        image: '/menu/veg-grilled-sandwich-v2.jpg',
         alt: 'Toasted veg grilled sandwich with golden grill marks',
       },
       {
@@ -210,13 +210,13 @@ export const MENU_SECTIONS: MenuSectionData[] = [
       {
         name: 'Chilli cheese sandwich',
         price: 75,
-        image: '/menu/chilli-cheese-sandwich.jpg',
+        image: '/menu/chilli-cheese-sandwich-v2.jpg',
         alt: 'Toasted chilli cheese sandwich with green chillies',
       },
       {
         name: 'Corn cheese sandwich',
         price: 105,
-        image: '/menu/corn-cheese-sandwich.jpg',
+        image: '/menu/corn-cheese-sandwich-v2.jpg',
         alt: 'Golden grilled sandwich with sweet corn and melted cheese',
       },
       {
@@ -228,7 +228,7 @@ export const MENU_SECTIONS: MenuSectionData[] = [
       {
         name: 'Pizza sandwich',
         price: 115,
-        image: '/menu/pizza-sandwich.jpg',
+        image: '/menu/pizza-sandwich-v2.jpg',
         alt: 'Italian seasoned pizza grilled sandwich with mozzarella',
       },
       {
@@ -263,8 +263,8 @@ export const MENU_SECTIONS: MenuSectionData[] = [
   {
     id: 'cheat-meal',
     title: 'Cheat Meal',
-    tagline: 'Feel-good',
-    theme: 'dark',
+    tagline: 'Maggi & Fries',
+    theme: 'light',
     imagePlacement: 'right',
     photos: [
       {
@@ -282,7 +282,7 @@ export const MENU_SECTIONS: MenuSectionData[] = [
       {
         name: 'Masala maggi',
         price: 55,
-        image: '/menu/masala-maggi.jpg',
+        image: '/menu/masala-maggi-v2.jpg',
         alt: 'Authentic street-style seasoned vegetable spice noodles',
       },
       {
@@ -294,7 +294,7 @@ export const MENU_SECTIONS: MenuSectionData[] = [
       {
         name: 'Veg maggi',
         price: 80,
-        image: '/menu/veg-maggi.jpg',
+        image: '/menu/veg-maggi-v2.jpg',
         alt: 'Fresh crunchy vegetables cooked with aromatic noodle spices',
       },
       {
@@ -347,7 +347,7 @@ export const MENU_SECTIONS: MenuSectionData[] = [
   {
     id: 'sides',
     title: 'Sides',
-    tagline: 'Situationship',
+    tagline: 'Quick Bites',
     theme: 'light',
     imagePlacement: 'left',
     photos: [
@@ -414,8 +414,8 @@ export const MENU_SECTIONS: MenuSectionData[] = [
   {
     id: 'mojito',
     title: 'Mojito',
-    tagline: 'Magic',
-    theme: 'dark',
+    tagline: 'Coolers & Lassi',
+    theme: 'light',
     imagePlacement: 'right',
     photos: [
       {
